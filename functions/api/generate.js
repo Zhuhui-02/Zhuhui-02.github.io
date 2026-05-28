@@ -21,6 +21,7 @@ export async function onRequestPost({ request, env }) {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
+        "api-key": apiKey,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -37,7 +38,7 @@ export async function onRequestPost({ request, env }) {
           },
         ],
         temperature: 0.92,
-        max_tokens: 900,
+        max_completion_tokens: 900,
       }),
     });
 
