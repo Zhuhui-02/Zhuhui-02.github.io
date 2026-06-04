@@ -1,5 +1,5 @@
 const MAX_SOURCE_LENGTH = 9000;
-const MIMO_BASE_URL = "https://api.mimo-v2.com/v1";
+const MIMO_BASE_URL = "https://token-plan-cn.xiaomimimo.com/v1";
 const MIMO_MODEL = "mimo-v2.5-pro";
 
 export async function onRequestPost({ request, env }) {

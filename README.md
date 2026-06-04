@@ -20,7 +20,7 @@ API 地址和模型已经在服务端固定。请在 Cloudflare Pages 环境变�
 
 - `MIMO_API_KEY`
 - 可选：`MIMO_MODEL`，默认 `mimo-v2.5-pro`
-- 可选：`MIMO_BASE_URL`，默认 `https://api.mimo-v2.com/v1`
+- 可选：`MIMO_BASE_URL`，默认 `https://token-plan-cn.xiaomimimo.com/v1`
 
 默认接口协议为 OpenAI Chat Completions 兼容格式：`POST /chat/completions`。
 
