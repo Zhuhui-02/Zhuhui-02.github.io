@@ -1,5 +1,6 @@
 const STORAGE_KEY = "novel-memory-translator-project";
 const SETTINGS_KEY = "novel-memory-translator-settings";
+const EPUB_MIN_STANDALONE_CHARS = 280;
 
 const memoryMeta = {
   terms: {
@@ -263,9 +264,13 @@ async function handleFile(file) {
       showToast("EPUB 解析库还没有加载完成，请稍后再试。");
       return;
     }
-    const chapters = await parseEpub(file);
-    setChapters(chapters, $("#project-title").value);
-    showToast(`已载入 EPUB：${chapters.length} 章`);
+    try {
+      const chapters = await parseEpub(file);
+      setChapters(chapters, $("#project-title").value);
+      showToast(`已载入 EPUB：${chapters.length} 章`);
+    } catch (error) {
+      showToast(error.message || "EPUB 解析失败。");
+    }
     return;
   }
 
@@ -320,29 +325,128 @@ async function parseEpub(file) {
     manifest.set(item.getAttribute("id"), {
       href: item.getAttribute("href"),
       type: item.getAttribute("media-type"),
+      properties: item.getAttribute("properties") || "",
     });
   });
 
-  const chapters = [];
+  const tocTitles = await readEpubToc(zip, manifest, baseDir);
+  const sections = [];
   for (const itemref of opf.querySelectorAll("spine itemref")) {
+    if (itemref.getAttribute("linear") === "no") continue;
     const item = manifest.get(itemref.getAttribute("idref"));
     if (!item || !/x?html/i.test(item.type || "")) continue;
     const path = normalizeZipPath(baseDir + item.href);
     const html = await zip.file(path)?.async("text");
     if (!html) continue;
     const doc = new DOMParser().parseFromString(html, "text/html");
-    doc.querySelectorAll("script, style, nav").forEach((node) => node.remove());
-    const title = cleanText(doc.querySelector("h1,h2,h3,title")?.textContent || `章节 ${chapters.length + 1}`);
-    const body = cleanText(doc.body?.innerText || doc.documentElement.textContent || "");
-    if (body) chapters.push({ title, source: body });
+
+    const title = getEpubSectionTitle(doc, tocTitles.get(path), sections.length + 1);
+    const body = extractEpubText(doc);
+    if (!body || isEpubUtilityPage(title, body, path)) continue;
+    sections.push({ title, source: body, path });
   }
 
+  const chapters = mergeEpubSections(sections);
   return chapters.length ? chapters : [{ title: file.name.replace(/\.epub$/i, ""), source: "EPUB 中没有找到可读取章节。" }];
+}
+
+async function readEpubToc(zip, manifest, baseDir) {
+  const titles = new Map();
+  for (const item of manifest.values()) {
+    const path = normalizeZipPath(baseDir + item.href);
+    if (item.properties.includes("nav") || /ncx/i.test(item.type || "")) {
+      const text = await zip.file(path)?.async("text");
+      if (!text) continue;
+      const doc = new DOMParser().parseFromString(text, item.type?.includes("ncx") ? "application/xml" : "text/html");
+      const basePath = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
+
+      doc.querySelectorAll("nav a[href], a[href]").forEach((link) => {
+        const href = link.getAttribute("href");
+        const title = cleanText(link.textContent);
+        if (!href || !title) return;
+        titles.set(resolveEpubHref(basePath, href), title);
+      });
+
+      doc.querySelectorAll("navPoint").forEach((point) => {
+        const href = point.querySelector("content")?.getAttribute("src");
+        const title = cleanText(point.querySelector("navLabel text")?.textContent);
+        if (!href || !title) return;
+        titles.set(resolveEpubHref(basePath, href), title);
+      });
+    }
+  }
+  return titles;
+}
+
+function getEpubSectionTitle(doc, tocTitle, index) {
+  const heading = cleanText(doc.querySelector("h1,h2,h3,.chapter-title,.title,.p-title")?.textContent || "");
+  const htmlTitle = cleanText(doc.querySelector("title")?.textContent || "");
+  return tocTitle || heading || htmlTitle || `章节 ${index}`;
+}
+
+function extractEpubText(doc) {
+  const clone = doc.cloneNode(true);
+  clone.querySelectorAll("script, style, nav, header, footer, aside, svg, img, audio, video, rp, rt").forEach((node) => node.remove());
+  const body = clone.querySelector("body") || clone.documentElement;
+  return cleanText(body?.innerText || body?.textContent || "");
+}
+
+function isEpubUtilityPage(title, body, path) {
+  const signal = `${title} ${path}`.toLowerCase();
+  const utilityPattern = /(cover|toc|contents|nav|copyright|colophon|titlepage|表紙|目次|奥付|著作権|版权|目录)/i;
+  if (utilityPattern.test(signal) && body.length < 1200) return true;
+
+  const lines = body.split("\n").map((line) => line.trim()).filter(Boolean);
+  const linkLikeLines = lines.filter((line) => /^(第.+[章話话]|chapter\s+\d+|\d+[.、]\s*)/i.test(line)).length;
+  return lines.length >= 8 && linkLikeLines / lines.length > 0.65;
+}
+
+function mergeEpubSections(sections) {
+  const chapters = [];
+  sections.forEach((section) => {
+    const last = chapters[chapters.length - 1];
+    const repeatedTitle = last && normalizeChapterTitle(last.title) === normalizeChapterTitle(section.title);
+    const genericContinuation =
+      last && isGenericEpubTitle(section.title) && !looksLikeChapterStart(section.title, section.source) && last.source.length < 3600;
+    const shouldMergeBack =
+      last && section.source.length < EPUB_MIN_STANDALONE_CHARS && !looksLikeChapterStart(section.title, section.source);
+    const shouldAppendToShortLast = last && last.source.length < EPUB_MIN_STANDALONE_CHARS && !looksLikeChapterStart(section.title, section.source);
+
+    if (repeatedTitle || genericContinuation || shouldMergeBack || shouldAppendToShortLast) {
+      last.source = `${last.source}\n\n${section.source}`;
+      if (/^(章节|section)\s*\d+$/i.test(last.title)) last.title = section.title;
+      return;
+    }
+
+    chapters.push({ title: section.title, source: section.source });
+  });
+
+  return chapters.map((chapter, index) => ({
+    title: chapter.title || `章节 ${index + 1}`,
+    source: chapter.source,
+  }));
+}
+
+function looksLikeChapterStart(title, source) {
+  const text = `${title}\n${source.slice(0, 160)}`;
+  return /(第[一二三四五六七八九十百千万零〇0-9]+[章話话節节幕卷]|chapter\s+\d+|prologue|epilogue|プロローグ|エピローグ|序章|終章|幕間)/i.test(text);
+}
+
+function isGenericEpubTitle(title) {
+  return /^(章节|section)\s*\d+$/i.test(title || "");
+}
+
+function normalizeChapterTitle(title) {
+  return cleanText(title).replace(/\s+/g, "").toLowerCase();
+}
+
+function resolveEpubHref(basePath, href) {
+  return normalizeZipPath(`${basePath}${href.split("#")[0].split("?")[0]}`);
 }
 
 function normalizeZipPath(path) {
   const parts = [];
-  path.split("/").forEach((part) => {
+  path.split("#")[0].split("?")[0].split("/").forEach((part) => {
     if (!part || part === ".") return;
     if (part === "..") parts.pop();
     else parts.push(decodeURIComponent(part));
