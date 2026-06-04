@@ -1,4 +1,6 @@
 const MAX_SOURCE_LENGTH = 9000;
+const MIMO_BASE_URL = "https://api.mimo-v2.com/v1";
+const MIMO_MODEL = "mimo-v2.5-pro";
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -7,13 +9,12 @@ export async function onRequestPost({ request, env }) {
     if (!sourceText) return json({ error: "缺少需要翻译的原文。" }, 400);
     if (sourceText.length > MAX_SOURCE_LENGTH) return json({ error: "单次文本过长，请拆分后再试。" }, 400);
 
-    const api = body.api || {};
-    const apiKey = clean(api.apiKey) || env.TRANSLATION_API_KEY || env.OPENAI_API_KEY;
-    const model = clean(api.model) || env.TRANSLATION_MODEL || env.AI_MODEL;
-    const baseUrl = (clean(api.baseUrl) || env.TRANSLATION_BASE_URL || env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
+    const apiKey = env.MIMO_API_KEY || env.TRANSLATION_API_KEY || env.OPENAI_API_KEY;
+    const model = env.MIMO_MODEL || MIMO_MODEL;
+    const baseUrl = (env.MIMO_BASE_URL || MIMO_BASE_URL).replace(/\/$/, "");
 
     if (!apiKey || !model) {
-      return json({ error: "缺少 API Key 或模型名。可在页面填写，或在 Cloudflare Pages 环境变量中配置。" }, 400);
+      return json({ error: "缺少 MIMO_API_KEY。请在 Cloudflare Pages 环境变量中配置，不要写进前端代码。" }, 400);
     }
 
     const prompt = buildPrompt({
@@ -43,8 +44,7 @@ export async function onRequestPost({ request, env }) {
           { role: "user", content: prompt },
         ],
         temperature: 0.35,
-        max_tokens: 4096,
-        response_format: { type: "json_object" },
+        max_completion_tokens: 4096,
       }),
     });
 

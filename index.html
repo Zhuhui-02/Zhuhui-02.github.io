@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="面向日本轻小说的翻译工作台，支持 TXT、EPUB、Kakuyomu 输入，自动维护术语和角色记忆表，并提供预览与下载。"
+      content="面向日本轻小说的翻译工作台，支持 TXT、EPUB、在线连载网页输入，自动维护术语和角色记忆表，并提供预览与下载。"
     />
     <title>轻小说翻译记忆工作台</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
@@ -33,19 +33,11 @@
           </nav>
 
           <section class="panel settings-panel">
-            <h2>API 设置</h2>
-            <label>
-              <span>接口地址</span>
-              <input id="api-base-url" type="url" placeholder="https://api.openai.com/v1" autocomplete="off" />
-            </label>
-            <label>
-              <span>模型</span>
-              <input id="api-model" type="text" placeholder="gpt-4.1-mini 或你的模型名" autocomplete="off" />
-            </label>
-            <label>
-              <span>API Key</span>
-              <input id="api-key" type="password" placeholder="仅保存在本浏览器" autocomplete="off" />
-            </label>
+            <h2>Mimo 翻译引擎</h2>
+            <div class="engine-card">
+              <strong>mimo-v2.5-pro</strong>
+              <span>API 地址和模型由服务器端固定，密钥只从 Cloudflare 环境变量读取。</span>
+            </div>
             <label>
               <span>译文风格</span>
               <select id="style-select">
@@ -53,10 +45,6 @@
                 <option value="published">出版轻小说体</option>
                 <option value="literal">偏忠实直译</option>
               </select>
-            </label>
-            <label class="checkbox-row">
-              <input id="save-api-key" type="checkbox" />
-              <span>在本浏览器保存 API Key</span>
             </label>
           </section>
 
@@ -86,13 +74,13 @@
               </section>
 
               <section class="panel">
-                <h2>Kakuyomu</h2>
+                <h2>在线连载网页</h2>
                 <label>
                   <span>作品或章节 URL</span>
-                  <input id="kakuyomu-url" type="url" placeholder="https://kakuyomu.jp/works/.../episodes/..." />
+                  <input id="source-url" type="url" placeholder="Kakuyomu / Syosetu / Narou / 其他章节页 URL" />
                 </label>
-                <button class="primary" id="fetch-kakuyomu" type="button">读取 Kakuyomu</button>
-                <p class="hint">Cloudflare Pages Function 会代服务器读取页面，避开浏览器跨域限制。</p>
+                <button class="primary" id="fetch-source" type="button">读取网页</button>
+                <p class="hint">优先支持 Kakuyomu、小説家になろう/Syosetu/Narou、Hameln、Novelup+；其他日文小说页会尝试通用正文解析。</p>
               </section>
             </div>
 

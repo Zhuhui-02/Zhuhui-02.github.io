@@ -136,18 +136,13 @@ function loadProject() {
 
 function saveSettings() {
   const settings = readSettings();
-  if (!$("#save-api-key").checked) settings.apiKey = "";
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
 function loadSettings() {
   try {
     const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-    $("#api-base-url").value = settings.baseUrl || "";
-    $("#api-model").value = settings.model || "";
     $("#style-select").value = settings.style || "webnovel";
-    $("#save-api-key").checked = Boolean(settings.apiKey);
-    if (settings.apiKey) $("#api-key").value = settings.apiKey;
   } catch {
     localStorage.removeItem(SETTINGS_KEY);
   }
@@ -155,9 +150,6 @@ function loadSettings() {
 
 function readSettings() {
   return {
-    baseUrl: $("#api-base-url").value.trim(),
-    model: $("#api-model").value.trim(),
-    apiKey: $("#api-key").value.trim(),
     style: $("#style-select").value,
   };
 }
@@ -178,7 +170,7 @@ function renderStatus() {
 function renderChapters() {
   const list = $("#chapter-list");
   if (!state.chapters.length) {
-    list.innerHTML = `<p class="hint">导入 TXT、EPUB、Kakuyomu，或粘贴原文后，章节会出现在这里。</p>`;
+    list.innerHTML = `<p class="hint">导入 TXT、EPUB、在线连载网页，或粘贴原文后，章节会出现在这里。</p>`;
     return;
   }
 
@@ -350,26 +342,26 @@ function normalizeZipPath(path) {
   return parts.join("/");
 }
 
-async function fetchKakuyomu() {
-  const url = $("#kakuyomu-url").value.trim();
+async function fetchSource() {
+  const url = $("#source-url").value.trim();
   if (!url) {
-    showToast("请先填写 Kakuyomu URL。");
+    showToast("请先填写在线小说 URL。");
     return;
   }
 
-  $("#fetch-kakuyomu").disabled = true;
-  $("#fetch-kakuyomu").textContent = "读取中";
+  $("#fetch-source").disabled = true;
+  $("#fetch-source").textContent = "读取中";
   try {
-    const response = await fetch(`/api/kakuyomu?url=${encodeURIComponent(url)}`);
-    const data = await readJsonResponse(response, "Kakuyomu 接口不可用。请在 Cloudflare Pages 或 Wrangler 环境中测试读取。");
+    const response = await fetch(`/api/source?url=${encodeURIComponent(url)}`);
+    const data = await readJsonResponse(response, "网页读取接口不可用。请在 Cloudflare Pages 或 Wrangler 环境中测试读取。");
     if (!response.ok) throw new Error(data.error || "读取失败");
-    setChapters(data.chapters, data.title || "Kakuyomu 文本");
-    showToast(`已读取 ${data.chapters.length} 个章节`);
+    setChapters(data.chapters, data.title || "在线小说文本");
+    showToast(`已从 ${data.site || "网页"} 读取 ${data.chapters.length} 个章节`);
   } catch (error) {
-    showToast(error.message || "Kakuyomu 读取失败。");
+    showToast(error.message || "网页读取失败。");
   } finally {
-    $("#fetch-kakuyomu").disabled = false;
-    $("#fetch-kakuyomu").textContent = "读取 Kakuyomu";
+    $("#fetch-source").disabled = false;
+    $("#fetch-source").textContent = "读取网页";
   }
 }
 
@@ -406,11 +398,6 @@ async function translateChapter(chapter, chapterIndex, totalChapters) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        api: {
-          baseUrl: settings.baseUrl,
-          model: settings.model,
-          apiKey: settings.apiKey,
-        },
         style: settings.style,
         chapterTitle: chapter.title,
         segmentIndex: index + 1,
@@ -611,7 +598,7 @@ function bindEvents() {
     showToast("已载入粘贴文本。");
   });
 
-  $("#fetch-kakuyomu").addEventListener("click", fetchKakuyomu);
+  $("#fetch-source").addEventListener("click", fetchSource);
   $("#translate-current").addEventListener("click", translateCurrent);
   $("#translate-all").addEventListener("click", translateAll);
 
@@ -620,7 +607,7 @@ function bindEvents() {
     saveProject();
   });
 
-  ["api-base-url", "api-model", "api-key", "style-select", "save-api-key"].forEach((id) => {
+  ["style-select"].forEach((id) => {
     $(`#${id}`).addEventListener("change", saveSettings);
   });
 

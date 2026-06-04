@@ -228,6 +228,22 @@ textarea {
   height: 18px;
 }
 
+.engine-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(47, 111, 102, 0.24);
+  border-radius: 8px;
+  color: var(--accent-strong);
+  background: rgba(47, 111, 102, 0.08);
+}
+
+.engine-card span {
+  color: var(--muted);
+  line-height: 1.62;
+  font-size: 0.86rem;
+}
+
 .chapter-list {
   display: grid;
   gap: 8px;
@@ -557,7 +573,7 @@ tr:last-child td {
   .actions button,
   .command-bar button,
   .panel-heading button,
-  #fetch-kakuyomu {
+  #fetch-source {
     width: 100%;
   }
 
