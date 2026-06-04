@@ -26,37 +26,44 @@ export async function onRequestPost({ request, env }) {
       memory: body.memory || {},
     });
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "api-key": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    const data = await requestChatCompletion({
+      baseUrl,
+      apiKey,
+      model,
+      messages: [
+        {
+          role: "system",
+          content:
+            "你是严谨的日文轻小说中文译者和连续性编辑。请按平台安全规则进行中性、文学化翻译，不扩写、不美化、不增加原文没有的敏感细节。translation 字段必须是简体中文译文，不得复制或保留日文原句；日文原名只允许出现在 memory 的 source 字段。必须保持人名、地名、术语、称谓、技能名、物品名和角色关系一致。只输出可解析 JSON，不输出 Markdown。",
+        },
+        { role: "user", content: prompt },
+      ],
+      maxTokens: 4096,
+    });
+
+    const content = data?.choices?.[0]?.message?.content || "";
+    let result = normalizeResult(parseModelJson(content), sourceText);
+
+    if (needsChineseRepair(result.translation, sourceText)) {
+      const repaired = await requestChatCompletion({
+        baseUrl,
+        apiKey,
         model,
         messages: [
           {
             role: "system",
             content:
-              "你是严谨的日文轻小说中文译者和连续性编辑。请按平台安全规则进行中性、文学化翻译，不扩写、不美化、不增加原文没有的敏感细节。必须保持人名、地名、术语、称谓、技能名、物品名和角色关系一致。只输出可解析 JSON，不输出 Markdown。",
+              "你是日译中校对器。任务是把错误保留日文的译文字段改成自然简体中文。只输出可解析 JSON。",
           },
-          { role: "user", content: prompt },
+          { role: "user", content: buildRepairPrompt(sourceText, result) },
         ],
-        temperature: 0.35,
-        max_tokens: 4096,
-      }),
-    });
-
-    const raw = await response.text();
-    if (!response.ok) {
-      return json({ error: `翻译 API 请求失败：${raw.slice(0, 300)}` }, 502);
+        maxTokens: 4096,
+      });
+      const repairedContent = repaired?.choices?.[0]?.message?.content || "";
+      result = normalizeResult(parseModelJson(repairedContent), sourceText);
     }
 
-    const data = JSON.parse(raw);
-    const content = data?.choices?.[0]?.message?.content || "";
-    const parsed = parseModelJson(content);
-    return json(normalizeResult(parsed, sourceText));
+    return json(result);
   } catch (error) {
     return json({ error: error.message || "翻译失败。" }, 500);
   }
@@ -93,7 +100,9 @@ function buildPrompt({ sourceText, style, chapterTitle, segmentIndex, segmentTot
 4. 若原文暗示时间、地点、角色关系、约定、任务、命令、重要事件或重要物品，请写入对应表格。
 5. 不要扩写暴力、色情、自伤、违法、仇恨等敏感内容；只按原文做必要、克制、上下文中性的文学翻译。
 6. 如果某个局部句子因平台安全策略无法翻译，只把该句替换为「[此句因平台安全策略未翻译]」，继续翻译其他句子并继续更新记忆表。
-7. 不要解释流程，只返回 JSON。
+7. translation 必须是简体中文译文。不要把日文原句、日文段落、假名对白原样放进 translation。
+8. 日文原名只放在 memory 的 source/sourceName 字段；译文正文中使用中文译名或自然中文表达。
+9. 不要解释流程，只返回 JSON。
 
 返回 JSON 结构必须是：
 {
@@ -117,6 +126,59 @@ ${JSON.stringify(memory, null, 2)}
 
 原文：
 ${sourceText}`;
+}
+
+async function requestChatCompletion({ baseUrl, apiKey, model, messages, maxTokens }) {
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "api-key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.25,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`翻译 API 请求失败：${raw.slice(0, 300)}`);
+  }
+  return JSON.parse(raw);
+}
+
+function buildRepairPrompt(sourceText, result) {
+  return `下面的 JSON 中 translation 字段仍包含过多日文。请只修复 translation，使其成为自然、完整的简体中文译文；memory 保留原结构并可原样返回。
+
+要求：
+1. 不要把日文原句复制进 translation。
+2. 人名、术语按现有 memory 尽量统一。
+3. 不新增解释，不输出 Markdown，只输出 JSON。
+
+原文：
+${sourceText}
+
+需要修复的 JSON：
+${JSON.stringify(result, null, 2)}`;
+}
+
+function needsChineseRepair(translation, sourceText) {
+  const text = clean(translation);
+  if (text.length < 20) return false;
+  if (normalizeComparable(text) === normalizeComparable(sourceText)) return true;
+
+  const kanaCount = (text.match(/[\u3040-\u30ff]/g) || []).length;
+  const japanesePunctuationCount = (text.match(/[「」『』〜ー]/g) || []).length;
+  const ratio = (kanaCount + japanesePunctuationCount) / Math.max(text.length, 1);
+  return kanaCount >= 12 && ratio > 0.08;
+}
+
+function normalizeComparable(value) {
+  return clean(value).replace(/\s+/g, "");
 }
 
 function parseModelJson(content) {
