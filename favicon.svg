@@ -1,20 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <defs>
-    <radialGradient id="orb" cx="42%" cy="30%" r="72%">
-      <stop offset="0%" stop-color="#fff8dc"/>
-      <stop offset="28%" stop-color="#e8b956"/>
-      <stop offset="64%" stop-color="#78a5e8"/>
-      <stop offset="100%" stop-color="#111014"/>
-    </radialGradient>
-    <linearGradient id="ring" x1="14" x2="114" y1="18" y2="110">
-      <stop offset="0%" stop-color="#e8b956"/>
-      <stop offset="48%" stop-color="#d8746f"/>
-      <stop offset="100%" stop-color="#68c39b"/>
-    </linearGradient>
-  </defs>
-  <rect width="128" height="128" rx="28" fill="#111014"/>
-  <circle cx="64" cy="64" r="42" fill="url(#orb)" opacity="0.95"/>
-  <path d="M28 65c16-26 56-34 76-8M24 68c19 35 64 36 82 2" fill="none" stroke="url(#ring)" stroke-width="7" stroke-linecap="round"/>
-  <path d="M64 24l7 22 23 1-18 14 6 22-18-13-18 13 6-22-18-14 23-1z" fill="#f6eee0" opacity="0.88"/>
-  <circle cx="43" cy="40" r="4" fill="#f6eee0"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Novel translator">
+  <rect width="64" height="64" rx="14" fill="#182027"/>
+  <path d="M14 16h18c5 0 9 4 9 9v25c0-5-4-9-9-9H14z" fill="#f1c45b"/>
+  <path d="M50 16H32c-5 0-9 4-9 9v25c0-5 4-9 9-9h18z" fill="#5abf9f"/>
+  <path d="M23 23h18M23 30h18M23 37h12" stroke="#182027" stroke-width="3" stroke-linecap="round"/>
 </svg>

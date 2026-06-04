@@ -5,171 +5,181 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="异世界转生仪式：签下契约，自由分配灵魂点数，选择种族、出身、职业，并窥见另一段人生。"
+      content="面向日本轻小说的翻译工作台，支持 TXT、EPUB、Kakuyomu 输入，自动维护术语和角色记忆表，并提供预览与下载。"
     />
-    <title>命运转生仪式</title>
+    <title>轻小说翻译记忆工作台</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./styles.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script defer src="./app.js"></script>
   </head>
   <body>
-    <main class="app-shell">
-      <nav class="step-nav" aria-label="仪式进度">
-        <span class="step-pill active" data-step-pill="contract">契约</span>
-        <span class="step-pill" data-step-pill="weave">塑形</span>
-        <span class="step-pill" data-step-pill="oracle">预言</span>
-      </nav>
-
-      <section class="page page-contract active" data-page="contract" aria-labelledby="contract-title">
-        <div class="hero-art" aria-hidden="true">
-          <div class="moon"></div>
-          <div class="gate">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          <div class="constellation constellation-a"></div>
-          <div class="constellation constellation-b"></div>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Novel Memory Translator</p>
+          <h1>轻小说翻译记忆工作台</h1>
         </div>
+        <div class="status-pill" id="project-status">未载入文本</div>
+      </header>
 
-        <div class="hero-copy">
-          <p class="eyebrow">星门第七契约室</p>
-          <h1 id="contract-title">命运转生仪式</h1>
-          <p class="hero-text">
-            你将离开旧日姓名，掷出灵魂的余烬。新的种族、出身、职业与能力会在星门另一侧重新排列。
-          </p>
-          <div class="contract-actions">
-            <button class="primary-button large-button" id="begin-contract" type="button">定下契约</button>
-            <button class="ghost-button large-button" id="peek-rules" type="button">查看代价</button>
-          </div>
-        </div>
-      </section>
+      <section class="workspace" aria-label="翻译工作台">
+        <aside class="sidebar">
+          <nav class="tabs" aria-label="工作区">
+            <button class="tab active" data-tab="source" type="button">来源</button>
+            <button class="tab" data-tab="translate" type="button">翻译</button>
+            <button class="tab" data-tab="memory" type="button">记忆表</button>
+            <button class="tab" data-tab="export" type="button">导出</button>
+          </nav>
 
-      <section class="page page-weave" data-page="weave" aria-labelledby="weave-title">
-        <header class="page-header">
-          <div>
-            <p class="eyebrow">第二幕 · 灵魂塑形</p>
-            <h2 id="weave-title">决定你在另一侧醒来时的模样</h2>
-          </div>
-        </header>
-
-        <div class="weave-grid">
-          <aside class="card identity-card">
-            <div class="portrait" aria-hidden="true">
-              <canvas id="sigil" width="360" height="360"></canvas>
-            </div>
-            <div class="identity-copy">
-              <h3 id="hero-name">未命名的旅人</h3>
-              <p id="hero-title">等待星门盖印</p>
-            </div>
-            <dl class="identity-list">
-              <div>
-                <dt>种族</dt>
-                <dd id="race">--</dd>
-              </div>
-              <div>
-                <dt>出身</dt>
-                <dd id="origin">--</dd>
-              </div>
-              <div>
-                <dt>相貌</dt>
-                <dd id="appearance">--</dd>
-              </div>
-            </dl>
-            <div class="identity-actions">
-              <button class="ghost-button" id="reroll-identity" type="button">重掷身世</button>
-              <button class="ghost-button" id="reroll-appearance" type="button">重掷相貌</button>
-            </div>
-          </aside>
-
-          <section class="card choice-card" aria-labelledby="calling-title">
-            <div class="card-header">
-              <div>
-                <p class="section-kicker">职业签</p>
-                <h3 id="calling-title">选择醒来后的道路</h3>
-              </div>
-            </div>
-            <div class="calling-options" id="calling-options"></div>
+          <section class="panel settings-panel">
+            <h2>API 设置</h2>
+            <label>
+              <span>接口地址</span>
+              <input id="api-base-url" type="url" placeholder="https://api.openai.com/v1" autocomplete="off" />
+            </label>
+            <label>
+              <span>模型</span>
+              <input id="api-model" type="text" placeholder="gpt-4.1-mini 或你的模型名" autocomplete="off" />
+            </label>
+            <label>
+              <span>API Key</span>
+              <input id="api-key" type="password" placeholder="仅保存在本浏览器" autocomplete="off" />
+            </label>
+            <label>
+              <span>译文风格</span>
+              <select id="style-select">
+                <option value="webnovel">中文网文流畅体</option>
+                <option value="published">出版轻小说体</option>
+                <option value="literal">偏忠实直译</option>
+              </select>
+            </label>
+            <label class="checkbox-row">
+              <input id="save-api-key" type="checkbox" />
+              <span>在本浏览器保存 API Key</span>
+            </label>
           </section>
 
-          <section class="card stats-card" aria-labelledby="stats-title">
-            <div class="card-header">
+          <section class="panel chapter-panel">
+            <div class="panel-heading">
+              <h2>章节</h2>
+              <button class="ghost small" id="clear-project" type="button">清空</button>
+            </div>
+            <div class="chapter-list" id="chapter-list"></div>
+          </section>
+        </aside>
+
+        <section class="main-stage">
+          <section class="view active" data-view="source">
+            <div class="grid two">
+              <section class="panel">
+                <h2>导入文本</h2>
+                <div class="drop-zone" id="drop-zone">
+                  <input id="file-input" type="file" accept=".txt,.epub,text/plain,application/epub+zip" />
+                  <strong>拖入 TXT 或 EPUB</strong>
+                  <span>也可以点击选择文件；EPUB 会按 spine 顺序拆成章节。</span>
+                </div>
+                <label>
+                  <span>项目名</span>
+                  <input id="project-title" type="text" placeholder="例如：某轻小说第一卷" />
+                </label>
+              </section>
+
+              <section class="panel">
+                <h2>Kakuyomu</h2>
+                <label>
+                  <span>作品或章节 URL</span>
+                  <input id="kakuyomu-url" type="url" placeholder="https://kakuyomu.jp/works/.../episodes/..." />
+                </label>
+                <button class="primary" id="fetch-kakuyomu" type="button">读取 Kakuyomu</button>
+                <p class="hint">Cloudflare Pages Function 会代服务器读取页面，避开浏览器跨域限制。</p>
+              </section>
+            </div>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h2>手动粘贴</h2>
+                <button class="ghost small" id="use-paste" type="button">载入为单章</button>
+              </div>
+              <textarea id="paste-source" rows="12" placeholder="把日文原文粘贴到这里。"></textarea>
+            </section>
+          </section>
+
+          <section class="view" data-view="translate">
+            <div class="split-preview">
+              <section class="panel preview-panel">
+                <div class="panel-heading">
+                  <h2>原文预览</h2>
+                  <span id="source-count">0 字符</span>
+                </div>
+                <pre id="source-preview"></pre>
+              </section>
+
+              <section class="panel preview-panel">
+                <div class="panel-heading">
+                  <h2>译文预览</h2>
+                  <span id="translation-state">等待翻译</span>
+                </div>
+                <article id="translation-preview" class="translation-preview"></article>
+              </section>
+            </div>
+
+            <section class="panel command-bar">
               <div>
-                <p class="section-kicker">灵魂点数</p>
-                <h3 id="stats-title">自由分配能力</h3>
+                <strong id="active-chapter-title">未选择章节</strong>
+                <span id="progress-text">准备就绪</span>
               </div>
-              <div class="score-cluster">
-                <span>剩余</span>
-                <output id="points-left" aria-label="剩余点数">0</output>
+              <div class="actions">
+                <button class="ghost" id="translate-current" type="button">翻译当前章</button>
+                <button class="primary" id="translate-all" type="button">翻译全部</button>
               </div>
-            </div>
-            <div class="pool-row">
-              <span>本次可用点数：<strong id="point-pool">0</strong></span>
-              <button class="ghost-button compact-button" id="reroll-points" type="button">重掷点数</button>
-            </div>
-            <div class="stat-editor" id="stat-editor"></div>
+            </section>
           </section>
 
-          <section class="card fate-card" aria-labelledby="fate-title">
-            <div class="card-header">
-              <div>
-                <p class="section-kicker">命运刻痕</p>
-                <h3 id="fate-title">随身而来的三道印记</h3>
+          <section class="view" data-view="memory">
+            <div class="memory-toolbar">
+              <button class="ghost small active" data-memory-tab="terms" type="button">术语</button>
+              <button class="ghost small" data-memory-tab="timeline" type="button">时空</button>
+              <button class="ghost small" data-memory-tab="characters" type="button">角色</button>
+              <button class="ghost small" data-memory-tab="relationships" type="button">社交</button>
+              <button class="ghost small" data-memory-tab="directives" type="button">任务约定</button>
+              <button class="ghost small" data-memory-tab="events" type="button">事件</button>
+              <button class="ghost small" data-memory-tab="items" type="button">物品</button>
+            </div>
+            <section class="panel table-panel">
+              <div class="panel-heading">
+                <h2 id="memory-title">术语表</h2>
+                <button class="ghost small" id="export-memory" type="button">下载记忆 JSON</button>
               </div>
-              <button class="ghost-button compact-button" id="reroll-tags" type="button">重掷印记</button>
-            </div>
-            <div class="tag-board" id="tag-board"></div>
+              <div class="table-wrap">
+                <table id="memory-table"></table>
+              </div>
+            </section>
           </section>
-        </div>
 
-        <footer class="bottom-bar">
-          <p id="weave-note">分配完所有点数后，星门才会开启最后一扇门。</p>
-          <button class="primary-button" id="to-oracle" type="button">前往水晶球</button>
-        </footer>
-      </section>
-
-      <section class="page page-oracle" data-page="oracle" aria-labelledby="oracle-title">
-        <header class="page-header">
-          <div>
-            <p class="eyebrow">第三幕 · 水晶球前</p>
-            <h2 id="oracle-title">让命运的水晶球预测你的一生</h2>
-          </div>
-          <button class="ghost-button" id="back-to-weave" type="button">返回调整</button>
-        </header>
-
-        <div class="oracle-grid">
-          <aside class="card summary-card">
-            <h3>契约书摘要</h3>
-            <dl class="summary-list" id="summary-list"></dl>
-          </aside>
-
-          <section class="crystal-card" aria-label="水晶球预言">
-            <div class="crystal-wrap" aria-hidden="true">
-              <div class="crystal-ball"></div>
-              <div class="crystal-base"></div>
-            </div>
-            <button class="primary-button large-button" id="generate-bio" type="button">
-              用命运的水晶球预测你的一生
-            </button>
-            <div class="bio-output" id="bio-output">
-              <p>水晶球尚未亮起。按下按钮后，它会显现另一段人生的开端。</p>
+          <section class="view" data-view="export">
+            <div class="grid three">
+              <section class="panel export-card">
+                <h2>TXT</h2>
+                <p>合并所有已翻译章节，适合继续排版或校对。</p>
+                <button class="primary" id="download-txt" type="button">下载 TXT</button>
+              </section>
+              <section class="panel export-card">
+                <h2>HTML</h2>
+                <p>保留章节标题和段落结构，可直接在浏览器中打开。</p>
+                <button class="primary" id="download-html" type="button">下载 HTML</button>
+              </section>
+              <section class="panel export-card">
+                <h2>项目备份</h2>
+                <p>包含原文、译文、API 设置外的全部记忆表。</p>
+                <button class="primary" id="download-project" type="button">下载 JSON</button>
+              </section>
             </div>
           </section>
-        </div>
+        </section>
       </section>
     </main>
 
-    <div class="modal-backdrop" id="contract-modal" hidden>
-      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <p class="section-kicker" id="modal-step">确认 1 / 3</p>
-        <h2 id="modal-title">契约确认</h2>
-        <p id="modal-copy"></p>
-        <div class="modal-actions">
-          <button class="ghost-button" id="modal-cancel" type="button">暂不转生</button>
-          <button class="primary-button" id="modal-confirm" type="button">继续确认</button>
-        </div>
-      </section>
-    </div>
-
-    <script defer src="./app.js"></script>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </body>
 </html>

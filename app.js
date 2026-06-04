@@ -1,582 +1,657 @@
-const names = ["艾莲娜", "洛因", "赛蕾斯", "凛音", "阿斯特", "米拉", "修", "菲娜", "卡洛", "伊芙"];
-const surnames = ["月岚", "白塔", "星坠", "鸢尾", "银钥", "赤炉", "雾港", "烬羽", "苍庭", "黎冠"];
+const STORAGE_KEY = "novel-memory-translator-project";
+const SETTINGS_KEY = "novel-memory-translator-settings";
 
-const races = [
-  ["人类", "适应力极强，能在混乱年代活得很像主角。"],
-  ["森精灵", "寿命漫长，容易被森林、诗歌和麻烦事偏爱。"],
-  ["龙裔", "血脉中有古龙残响，生气时周围会变暖。"],
-  ["月兔族", "夜间感知敏锐，擅长听见别人没说出口的话。"],
-  ["自动人偶", "以魔导核心维持生命，感情会一点点学会发光。"],
-  ["鬼族", "体魄强悍，重视誓言、酒宴和正面决斗。"],
-  ["海妖", "声音会影响潮汐，也会让谎言变得不稳。"],
-  ["史莱姆拟态", "可塑性惊人，身份经常被错误登记。"],
-  ["天翼族", "背负羽翼与戒律，天生被高处的风注视。"],
-  ["魔族混血", "魔力充沛，却常被旧王国的偏见缠上。"],
-];
-
-const origins = [
-  "边境药师的养子",
-  "地下竞技场逃出的新人",
-  "没落贵族家的第七继承人",
-  "图书迷宫的临时管理员",
-  "港口占星师捡到的孤儿",
-  "魔王城厨房的见习工",
-  "龙墓巡礼团的记录员",
-  "被圣堂登记错误的勇者候补",
-];
-
-const callings = [
-  ["符文剑士", "用剑切开敌意，再用符文把麻烦封回去。", { strength: 2, mana: 1 }],
-  ["星图术师", "从星座里读路线，也从沉默里读谎话。", { intellect: 2, luck: 1 }],
-  ["契约召唤师", "擅长与难缠存在谈条件，包括自己。", { charm: 2, mana: 1 }],
-  ["遗物鉴定家", "能分辨古董、诅咒和老板开的低价。", { intellect: 2, charm: 1 }],
-  ["战地厨师", "用一口锅维持队伍士气，也能敲晕敌人。", { strength: 1, charm: 1, luck: 1 }],
-  ["迷宫建筑师", "懂得迷宫如何吞人，因此也懂得如何逃出来。", { intellect: 1, agility: 1, mana: 1 }],
-  ["影步斥候", "在灯火照不到的地方，把情报带回清晨。", { agility: 2, luck: 1 }],
-  ["圣歌修补匠", "替破碎结界补上最后一个音节。", { mana: 2, charm: 1 }],
-];
-
-const hair = ["银白长发", "黑曜短发", "樱粉卷发", "深蓝马尾", "金色碎发", "薄荷色发尾"];
-const eyes = ["琥珀眼", "冰蓝眼", "异色瞳", "翡翠眼", "紫晶眼", "暗红眼"];
-const marks = ["锁骨处有星形印记", "手背刻着古代编号", "耳后浮现金色鳞纹", "额角有月牙般的微光", "影子偶尔慢半拍"];
-const aura = ["周身带着雨后草木香", "说话时空气像被烛火照亮", "靠近时能听见微弱钟声", "情绪波动会落下细小光尘", "脚步声像翻页"];
-
-const talents = [
-  ["天赋", "万象翻译", "能读懂大多数古代文字，但菜单也会被读得像预言。"],
-  ["天赋", "低阶魔法暴击", "越简单的法术，越可能出现离谱效果。"],
-  ["天赋", "迷宫嗅觉", "能直觉找到隐藏房间，也常误入厨房。"],
-  ["天赋", "王器亲和", "传说级遗物愿意听你解释三分钟。"],
-  ["天赋", "灵魂账本", "能看见承诺的重量，适合谈判和讨债。"],
-];
-
-const blessings = [
-  ["祝福", "晨星庇护", "每天第一次失败会变成一次微妙提示。"],
-  ["祝福", "旅店之缘", "在陌生城镇总能找到愿意收留你的人。"],
-  ["祝福", "风的偏爱", "移动、闪避与逃跑时格外体面。"],
-  ["祝福", "丰穰餐桌", "做出的食物能缓慢恢复同行者的心气。"],
-];
-
-const curses = [
-  ["诅咒", "迟到的神谕", "关键提示总会晚来一小会儿。"],
-  ["诅咒", "史诗误会", "越认真解释，旁人越觉得你深不可测。"],
-  ["诅咒", "满月眩晕", "满月夜魔力增强，但方向感短暂离席。"],
-  ["诅咒", "宝箱偏见", "稀有宝箱总先给你生活用品。"],
-];
-
-const stats = [
-  ["strength", "筋力"],
-  ["agility", "敏捷"],
-  ["intellect", "智识"],
-  ["mana", "魔力"],
-  ["charm", "魅力"],
-  ["luck", "幸运"],
-];
-
-const BASE_STAT = 4;
-const MAX_STAT = 18;
-const FULL_BUILD_CHANCE = 0.08;
-
-const contractTexts = [
-  "星门会取走你旧世界的一点惯性。你仍是你，但醒来时，常识未必还站在你这边。",
-  "新的身体、出身与运气不会完全公平。命运只负责发牌，不负责教人如何漂亮地打出去。",
-  "一旦签下契约，水晶球将为你显现另一段人生。请确认：你愿意让故事开始。",
-];
+const memoryMeta = {
+  terms: {
+    title: "术语表",
+    headers: ["原文", "译文", "说明", "首次出现"],
+    fields: ["source", "target", "note", "chapter"],
+    key: ["source"],
+  },
+  timeline: {
+    title: "时空表格",
+    headers: ["时间/阶段", "地点/世界", "说明", "首次出现"],
+    fields: ["time", "place", "note", "chapter"],
+    key: ["time", "place"],
+  },
+  characters: {
+    title: "角色特征表格",
+    headers: ["原名", "译名", "身份", "特征", "首次出现"],
+    fields: ["sourceName", "targetName", "role", "traits", "chapter"],
+    key: ["sourceName"],
+  },
+  relationships: {
+    title: "角色与主角社交表格",
+    headers: ["角色", "与主角关系", "态度", "变化", "首次出现"],
+    fields: ["character", "relation", "attitude", "development", "chapter"],
+    key: ["character", "relation"],
+  },
+  directives: {
+    title: "任务、命令或者约定表格",
+    headers: ["类型", "内容", "关联人物", "状态", "首次出现"],
+    fields: ["type", "content", "people", "status", "chapter"],
+    key: ["type", "content"],
+  },
+  events: {
+    title: "重要事件历史表格",
+    headers: ["事件", "时间/章节", "影响", "相关人物", "首次出现"],
+    fields: ["event", "time", "impact", "people", "chapter"],
+    key: ["event"],
+  },
+  items: {
+    title: "重要物品表格",
+    headers: ["原名", "译名", "类别", "说明", "首次出现"],
+    fields: ["sourceName", "targetName", "type", "note", "chapter"],
+    key: ["sourceName"],
+  },
+};
 
 const state = {
-  page: "contract",
-  modalMode: "contract",
-  modalIndex: 0,
-  profile: null,
-  pointPool: 0,
-  pointsLeft: 0,
-  selectedCallingIndex: 0,
+  title: "",
+  chapters: [],
+  activeChapterId: null,
+  memory: createEmptyMemory(),
+  activeMemoryTab: "terms",
+  translating: false,
 };
 
 const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
-function pick(list) {
-  return list[Math.floor(Math.random() * list.length)];
+function createEmptyMemory() {
+  return Object.fromEntries(Object.keys(memoryMeta).map((key) => [key, []]));
 }
 
-function rollPointPool() {
-  if (Math.random() < FULL_BUILD_CHANCE) {
-    return stats.length * MAX_STAT;
-  }
-
-  return 40 + Math.floor(Math.random() * 63);
+function uid(prefix = "id") {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function sumStats(ability = state.profile?.ability || {}) {
-  return Object.values(ability).reduce((sum, value) => sum + value, 0);
+function cleanText(value) {
+  return String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u3000/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
 }
 
-function getCallingBonus(callingIndex = state.selectedCallingIndex) {
-  return callings[callingIndex]?.[2] || {};
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-function getMinimumStats(callingIndex = state.selectedCallingIndex) {
-  const bonus = getCallingBonus(callingIndex);
-  return Object.fromEntries(stats.map(([key]) => [key, BASE_STAT + (bonus[key] || 0)]));
+function showToast(message) {
+  const toast = $("#toast");
+  toast.textContent = message;
+  toast.classList.add("show");
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => toast.classList.remove("show"), 2800);
 }
 
-function getStatMinimum(key) {
-  return getMinimumStats()[key];
+function activeChapter() {
+  return state.chapters.find((chapter) => chapter.id === state.activeChapterId) || state.chapters[0] || null;
 }
 
-function getStatMaximum(key) {
-  return MAX_STAT;
-}
-
-function syncPointsLeft() {
-  state.pointsLeft = state.pointPool - sumStats();
-}
-
-function createIdentity(previous = {}) {
-  const race = previous.race || pick(races);
-  const origin = previous.origin || pick(origins);
-  return {
-    name: previous.name || `${pick(surnames)} ${pick(names)}`,
-    race,
-    origin,
-    appearance:
-      previous.appearance || `${pick(hair)}，${pick(eyes)}，${pick(marks)}，${pick(aura)}`,
-    tags: previous.tags || [pick(talents), pick(blessings), pick(curses)],
-  };
-}
-
-function createProfile(options = {}) {
-  const previous = state.profile || {};
-  const identity = createIdentity({
-    name: options.keepName ? previous.name : undefined,
-    race: options.keepRace ? previous.race : undefined,
-    origin: options.keepOrigin ? previous.origin : undefined,
-    appearance: options.keepAppearance ? previous.appearance : undefined,
-    tags: options.keepTags ? previous.tags : undefined,
-  });
-
-  const ability = options.keepStats && previous.ability ? { ...previous.ability } : createBaseStats();
-  const calling = callings[state.selectedCallingIndex] || callings[0];
-  const total = sumStats(ability);
-
-  return {
-    ...identity,
-    calling: calling[0],
-    callingDescription: calling[1],
-    title: `${identity.race[0]} · ${calling[0]}`,
-    ability,
-    total,
-    seed: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-  };
-}
-
-function createBaseStats() {
-  return getMinimumStats();
-}
-
-function startWeaving() {
-  state.pointPool = rollPointPool();
-  state.selectedCallingIndex = Math.floor(Math.random() * callings.length);
-  state.profile = createProfile();
-  syncPointsLeft();
-  refreshProfile();
-  showPage("weave");
+function setChapters(chapters, title = state.title || "未命名项目") {
+  state.title = title;
+  state.chapters = chapters.map((chapter, index) => ({
+    id: chapter.id || uid("chapter"),
+    title: chapter.title || `第 ${index + 1} 章`,
+    source: cleanText(chapter.source),
+    translation: chapter.translation || "",
+    translated: Boolean(chapter.translation),
+  }));
+  state.activeChapterId = state.chapters[0]?.id || null;
+  $("#project-title").value = state.title;
+  saveProject();
   renderAll();
 }
 
-function resetAbilityForCalling() {
-  state.profile.ability = createBaseStats();
-  syncPointsLeft();
-  refreshProfile();
+function saveProject() {
+  const payload = {
+    title: state.title,
+    chapters: state.chapters,
+    activeChapterId: state.activeChapterId,
+    memory: state.memory,
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
 }
 
-function changeCalling(nextIndex) {
-  const oldMinimums = getMinimumStats();
-  const extras = Object.fromEntries(
-    stats.map(([key]) => [key, Math.max(0, state.profile.ability[key] - oldMinimums[key])]),
-  );
-
-  state.selectedCallingIndex = nextIndex;
-  const newMinimums = getMinimumStats();
-  state.profile.ability = Object.fromEntries(
-    stats.map(([key]) => [key, newMinimums[key] + extras[key]]),
-  );
-  syncPointsLeft();
-  refreshProfile();
+function loadProject() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    state.title = data.title || "";
+    state.chapters = Array.isArray(data.chapters) ? data.chapters : [];
+    state.activeChapterId = data.activeChapterId || state.chapters[0]?.id || null;
+    state.memory = { ...createEmptyMemory(), ...(data.memory || {}) };
+    $("#project-title").value = state.title;
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+  }
 }
 
-function refreshProfile() {
-  state.profile.total = sumStats();
-  state.profile.calling = callings[state.selectedCallingIndex][0];
-  state.profile.callingDescription = callings[state.selectedCallingIndex][1];
-  state.profile.title = `${state.profile.race[0]} · ${state.profile.calling}`;
+function saveSettings() {
+  const settings = readSettings();
+  if (!$("#save-api-key").checked) settings.apiKey = "";
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
-function showPage(page) {
-  state.page = page;
-  document.querySelectorAll("[data-page]").forEach((section) => {
-    section.classList.toggle("active", section.dataset.page === page);
-  });
-  document.querySelectorAll("[data-step-pill]").forEach((pill) => {
-    pill.classList.toggle("active", pill.dataset.stepPill === page);
-  });
-  window.scrollTo({ top: 0, behavior: "smooth" });
+function loadSettings() {
+  try {
+    const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    $("#api-base-url").value = settings.baseUrl || "";
+    $("#api-model").value = settings.model || "";
+    $("#style-select").value = settings.style || "webnovel";
+    $("#save-api-key").checked = Boolean(settings.apiKey);
+    if (settings.apiKey) $("#api-key").value = settings.apiKey;
+  } catch {
+    localStorage.removeItem(SETTINGS_KEY);
+  }
+}
+
+function readSettings() {
+  return {
+    baseUrl: $("#api-base-url").value.trim(),
+    model: $("#api-model").value.trim(),
+    apiKey: $("#api-key").value.trim(),
+    style: $("#style-select").value,
+  };
 }
 
 function renderAll() {
-  renderProfile();
-  renderCallings();
-  renderStats();
-  renderTags();
-  renderSummary();
-  drawSigil(state.profile);
+  renderStatus();
+  renderChapters();
+  renderPreviews();
+  renderMemoryTable();
 }
 
-function renderProfile() {
-  const profile = state.profile;
-  $("#hero-name").textContent = profile.name;
-  $("#hero-title").textContent = profile.title;
-  $("#race").textContent = `${profile.race[0]}：${profile.race[1]}`;
-  $("#origin").textContent = profile.origin;
-  $("#appearance").textContent = profile.appearance;
+function renderStatus() {
+  const translated = state.chapters.filter((chapter) => chapter.translated).length;
+  const total = state.chapters.length;
+  $("#project-status").textContent = total ? `${translated} / ${total} 章已翻译` : "未载入文本";
 }
 
-function renderCallings() {
-  $("#calling-options").innerHTML = callings
-    .map(
-      ([name, description], index) => `
-        <button class="calling-option ${index === state.selectedCallingIndex ? "selected" : ""}" data-calling="${index}" type="button">
-          <strong>${name}</strong>
-          <span>${description}</span>
+function renderChapters() {
+  const list = $("#chapter-list");
+  if (!state.chapters.length) {
+    list.innerHTML = `<p class="hint">导入 TXT、EPUB、Kakuyomu，或粘贴原文后，章节会出现在这里。</p>`;
+    return;
+  }
+
+  list.innerHTML = state.chapters
+    .map((chapter, index) => {
+      const status = chapter.translated ? "已翻译" : "未翻译";
+      return `
+        <button class="chapter-button ${chapter.id === state.activeChapterId ? "active" : ""}" data-chapter="${chapter.id}" type="button">
+          <strong>${index + 1}. ${escapeHtml(chapter.title)}</strong>
+          <span>${chapter.source.length} 字符 · ${status}</span>
         </button>
-      `,
-    )
+      `;
+    })
     .join("");
 
-  document.querySelectorAll("[data-calling]").forEach((button) => {
+  $$("[data-chapter]").forEach((button) => {
     button.addEventListener("click", () => {
-      changeCalling(Number(button.dataset.calling));
+      state.activeChapterId = button.dataset.chapter;
+      saveProject();
       renderAll();
     });
   });
 }
 
-function renderStats() {
-  $("#point-pool").textContent = state.pointPool;
-  $("#points-left").textContent = state.pointsLeft;
-  $("#weave-note").textContent =
-    state.pointsLeft === 0
-      ? "命盘已经填满。水晶球正在等待你的最后一步。"
-      : state.pointPool >= stats.length * MAX_STAT
-        ? "罕见的满月命盘。今天，星门格外慷慨。"
-      : `还剩 ${state.pointsLeft} 点未分配。`;
+function renderPreviews() {
+  const chapter = activeChapter();
+  $("#active-chapter-title").textContent = chapter ? chapter.title : "未选择章节";
+  $("#source-count").textContent = chapter ? `${chapter.source.length} 字符` : "0 字符";
+  $("#source-preview").textContent = chapter?.source || "暂无原文。";
+  $("#translation-state").textContent = chapter?.translated ? "已生成译文" : "等待翻译";
+  $("#translation-preview").innerHTML = chapter?.translation
+    ? formatParagraphs(chapter.translation)
+    : `<p class="hint">翻译完成后会直接显示在这里。</p>`;
+}
 
-  $("#stat-editor").innerHTML = stats
-    .map(([key, label]) => {
-      const value = state.profile.ability[key];
-      const min = getStatMinimum(key);
-      const absoluteMax = getStatMaximum(key);
-      const meterValue = ((value - min) / Math.max(1, absoluteMax - min)) * 100;
-      return `
-        <article class="stat-row">
-          <div class="stat-top">
-            <span class="stat-name">${label}</span>
-            <span class="stat-value">${value}</span>
-          </div>
-          <div class="stat-controls">
-            <button class="step-button" data-stat="${key}" data-delta="-1" type="button" aria-label="减少${label}">-</button>
-            <label class="slider-shell">
-              <input
-                class="stat-slider"
-                data-stat-range="${key}"
-                type="range"
-                min="${min}"
-                max="${absoluteMax}"
-                value="${value}"
-                style="--value: ${Math.max(0, Math.min(meterValue, 100))}%"
-                aria-label="调整${label}"
-              />
-            </label>
-            <button class="step-button" data-stat="${key}" data-delta="1" type="button" aria-label="增加${label}">+</button>
-          </div>
-          <div class="stat-hint">下限 ${min} · 命盘上限 ${absoluteMax}</div>
-        </article>
-      `;
-    })
+function formatParagraphs(text) {
+  return cleanText(text)
+    .split(/\n{2,}|\n/)
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
     .join("");
-
-  document.querySelectorAll("[data-stat]").forEach((button) => {
-    button.addEventListener("click", () => {
-      adjustStat(button.dataset.stat, Number(button.dataset.delta));
-    });
-  });
-
-  document.querySelectorAll("[data-stat-range]").forEach((input) => {
-    input.addEventListener("input", () => {
-      setStat(input.dataset.statRange, Number(input.value));
-    });
-  });
 }
 
-function adjustStat(key, delta) {
-  const current = state.profile.ability[key];
-  if (delta > 0 && state.pointsLeft <= 0) return;
-  if (delta > 0 && current >= getStatMaximum(key)) return;
-  if (delta < 0 && current <= getStatMinimum(key)) return;
-
-  state.profile.ability[key] = current + delta;
-  syncPointsLeft();
-  refreshProfile();
-  renderStats();
-  renderProfile();
-  drawSigil(state.profile);
+function renderMemoryTable() {
+  const meta = memoryMeta[state.activeMemoryTab];
+  $("#memory-title").textContent = meta.title;
+  const rows = state.memory[state.activeMemoryTab] || [];
+  const head = `<thead><tr>${meta.headers.map((header) => `<th>${header}</th>`).join("")}</tr></thead>`;
+  const bodyRows = rows.length
+    ? rows
+        .map(
+          (row) => `
+            <tr>
+              ${meta.fields.map((field) => `<td>${escapeHtml(row[field] || "")}</td>`).join("")}
+            </tr>
+          `,
+        )
+        .join("")
+    : `<tr><td colspan="${meta.fields.length}">暂无记录。翻译时会自动补充。</td></tr>`;
+  $("#memory-table").innerHTML = `${head}<tbody>${bodyRows}</tbody>`;
 }
 
-function setStat(key, nextValue) {
-  const current = state.profile.ability[key];
-  const min = getStatMinimum(key);
-  const max = Math.min(getStatMaximum(key), current + state.pointsLeft);
-  const value = Math.max(min, Math.min(max, nextValue));
-  if (value === current) {
-    renderStats();
+function switchTab(tab) {
+  $$(".tab").forEach((button) => button.classList.toggle("active", button.dataset.tab === tab));
+  $$("[data-view]").forEach((view) => view.classList.toggle("active", view.dataset.view === tab));
+}
+
+function switchMemoryTab(tab) {
+  state.activeMemoryTab = tab;
+  $$("[data-memory-tab]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.memoryTab === tab);
+  });
+  renderMemoryTable();
+}
+
+async function handleFile(file) {
+  if (!file) return;
+  const lowerName = file.name.toLowerCase();
+  $("#project-title").value = file.name.replace(/\.(txt|epub)$/i, "");
+  if (lowerName.endsWith(".epub")) {
+    if (!window.JSZip) {
+      showToast("EPUB 解析库还没有加载完成，请稍后再试。");
+      return;
+    }
+    const chapters = await parseEpub(file);
+    setChapters(chapters, $("#project-title").value);
+    showToast(`已载入 EPUB：${chapters.length} 章`);
     return;
   }
 
-  state.profile.ability[key] = value;
-  syncPointsLeft();
-  refreshProfile();
-  renderStats();
-  renderProfile();
-  drawSigil(state.profile);
+  const text = await file.text();
+  const chapters = splitPlainText(text);
+  setChapters(chapters, $("#project-title").value);
+  showToast(`已载入 TXT：${chapters.length} 章`);
 }
 
-function renderTags() {
-  $("#tag-board").innerHTML = state.profile.tags
-    .map(
-      ([type, name, description]) => `
-        <article class="fate-tag">
-          <strong>${type} · ${name}</strong>
-          <span>${description}</span>
-        </article>
-      `,
-    )
-    .join("");
+function splitPlainText(text) {
+  const source = cleanText(text);
+  if (!source) return [];
+  const lines = source.split("\n");
+  const chapters = [];
+  let currentTitle = "正文";
+  let buffer = [];
+  const chapterPattern = /^(第[一二三四五六七八九十百千万零〇0-9]+[章话節节幕卷].{0,40}|chapter\s+\d+.{0,40}|[0-9]{1,4}[.、]\s*.{1,60})$/i;
+
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (trimmed && chapterPattern.test(trimmed) && buffer.join("\n").trim().length > 120) {
+      chapters.push({ title: currentTitle, source: buffer.join("\n").trim() });
+      currentTitle = trimmed;
+      buffer = [];
+      return;
+    }
+    if (trimmed && chapterPattern.test(trimmed) && buffer.length === 0) {
+      currentTitle = trimmed;
+      return;
+    }
+    buffer.push(line);
+  });
+
+  if (buffer.join("\n").trim()) chapters.push({ title: currentTitle, source: buffer.join("\n").trim() });
+  return chapters.length ? chapters : [{ title: "正文", source }];
 }
 
-function renderSummary() {
-  if (!state.profile) return;
-  const entries = [
-    ["姓名", state.profile.name],
-    ["种族", state.profile.race[0]],
-    ["出身", state.profile.origin],
-    ["职业", state.profile.calling],
-    ["相貌", state.profile.appearance],
-    ["能力合计", String(state.profile.total)],
-  ];
+async function parseEpub(file) {
+  const zip = await window.JSZip.loadAsync(await file.arrayBuffer());
+  const container = await zip.file("META-INF/container.xml")?.async("text");
+  if (!container) throw new Error("EPUB 缺少 container.xml");
 
-  $("#summary-list").innerHTML = entries
-    .map(
-      ([label, value]) => `
-        <div>
-          <dt>${label}</dt>
-          <dd>${value}</dd>
-        </div>
-      `,
-    )
-    .join("");
-}
+  const xml = new DOMParser().parseFromString(container, "application/xml");
+  const opfPath = xml.querySelector("rootfile")?.getAttribute("full-path");
+  if (!opfPath) throw new Error("EPUB 缺少 OPF 文件");
 
-function drawSigil(profile) {
-  const canvas = $("#sigil");
-  const context = canvas.getContext("2d");
-  const size = canvas.width;
-  const center = size / 2;
+  const opfText = await zip.file(opfPath)?.async("text");
+  const opf = new DOMParser().parseFromString(opfText, "application/xml");
+  const baseDir = opfPath.includes("/") ? opfPath.slice(0, opfPath.lastIndexOf("/") + 1) : "";
+  const manifest = new Map();
+  opf.querySelectorAll("manifest item").forEach((item) => {
+    manifest.set(item.getAttribute("id"), {
+      href: item.getAttribute("href"),
+      type: item.getAttribute("media-type"),
+    });
+  });
 
-  context.clearRect(0, 0, size, size);
-  context.save();
-  context.translate(center, center);
-
-  const colors = ["#e8b956", "#d8746f", "#68c39b", "#78a5e8", "#a88be8"];
-  const chartCap = Math.max(...stats.map(([key]) => getStatMaximum(key)), 16);
-  for (let ring = 0; ring < 5; ring += 1) {
-    context.beginPath();
-    context.strokeStyle = colors[ring];
-    context.globalAlpha = 0.24 + ring * 0.08;
-    context.lineWidth = ring === 0 ? 4 : 2;
-    context.arc(0, 0, 138 - ring * 22, 0, Math.PI * 2);
-    context.stroke();
+  const chapters = [];
+  for (const itemref of opf.querySelectorAll("spine itemref")) {
+    const item = manifest.get(itemref.getAttribute("idref"));
+    if (!item || !/x?html/i.test(item.type || "")) continue;
+    const path = normalizeZipPath(baseDir + item.href);
+    const html = await zip.file(path)?.async("text");
+    if (!html) continue;
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    doc.querySelectorAll("script, style, nav").forEach((node) => node.remove());
+    const title = cleanText(doc.querySelector("h1,h2,h3,title")?.textContent || `章节 ${chapters.length + 1}`);
+    const body = cleanText(doc.body?.innerText || doc.documentElement.textContent || "");
+    if (body) chapters.push({ title, source: body });
   }
 
-  const points = stats.map(([key], index) => {
-    const angle = -Math.PI / 2 + (Math.PI * 2 * index) / stats.length;
-    const radius = 38 + (profile.ability[key] / chartCap) * 100;
-    return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+  return chapters.length ? chapters : [{ title: file.name.replace(/\.epub$/i, ""), source: "EPUB 中没有找到可读取章节。" }];
+}
+
+function normalizeZipPath(path) {
+  const parts = [];
+  path.split("/").forEach((part) => {
+    if (!part || part === ".") return;
+    if (part === "..") parts.pop();
+    else parts.push(decodeURIComponent(part));
   });
-
-  context.globalAlpha = 0.9;
-  context.beginPath();
-  points.forEach(([x, y], index) => {
-    if (index === 0) context.moveTo(x, y);
-    else context.lineTo(x, y);
-  });
-  context.closePath();
-  context.fillStyle = "rgba(232, 185, 86, 0.16)";
-  context.strokeStyle = "#e8b956";
-  context.lineWidth = 3;
-  context.fill();
-  context.stroke();
-
-  points.forEach(([x, y], index) => {
-    context.beginPath();
-    context.fillStyle = colors[index % colors.length];
-    context.arc(x, y, 6, 0, Math.PI * 2);
-    context.fill();
-  });
-
-  context.globalAlpha = 0.92;
-  context.fillStyle = "#f5efe3";
-  context.font = "700 28px sans-serif";
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.fillText(String(profile.total), 0, 0);
-  context.restore();
+  return parts.join("/");
 }
 
-function openContractModal(startIndex = 0) {
-  state.modalMode = "contract";
-  state.modalIndex = startIndex;
-  $("#contract-modal").hidden = false;
-  renderModal();
-}
+async function fetchKakuyomu() {
+  const url = $("#kakuyomu-url").value.trim();
+  if (!url) {
+    showToast("请先填写 Kakuyomu URL。");
+    return;
+  }
 
-function openCostModal() {
-  state.modalMode = "cost";
-  $("#contract-modal").hidden = false;
-  $("#modal-step").textContent = "星门告示";
-  $("#modal-title").textContent = "契约代价";
-  $("#modal-copy").textContent =
-    "星门只负责重塑命盘，不保证你成为勇者。点数可以重掷，种族、出身、相貌和命运刻痕也可以重新抽取；但一旦走到水晶球前，预言会以当时的命盘为准。";
-  $("#modal-cancel").textContent = "关闭";
-  $("#modal-confirm").textContent = "我明白了";
-}
-
-function renderModal() {
-  const index = state.modalIndex;
-  $("#modal-title").textContent = "契约确认";
-  $("#modal-step").textContent = `确认 ${index + 1} / ${contractTexts.length}`;
-  $("#modal-copy").textContent = contractTexts[index];
-  $("#modal-cancel").textContent = "暂不转生";
-  $("#modal-confirm").textContent = index === contractTexts.length - 1 ? "签下契约" : "继续确认";
-}
-
-function closeContractModal() {
-  $("#contract-modal").hidden = true;
-}
-
-function formatBiography(text) {
-  return text
-    .split(/\n{2,}/)
-    .map((paragraph) => `<p>${paragraph.trim()}</p>`)
-    .join("");
-}
-
-async function generateBiography() {
-  const output = $("#bio-output");
-  output.innerHTML = `<p class="loading">水晶球里有雾光升起，正在寻找与你相连的那条命运线...</p>`;
-
+  $("#fetch-kakuyomu").disabled = true;
+  $("#fetch-kakuyomu").textContent = "读取中";
   try {
-    const response = await fetch("/api/generate", {
+    const response = await fetch(`/api/kakuyomu?url=${encodeURIComponent(url)}`);
+    const data = await readJsonResponse(response, "Kakuyomu 接口不可用。请在 Cloudflare Pages 或 Wrangler 环境中测试读取。");
+    if (!response.ok) throw new Error(data.error || "读取失败");
+    setChapters(data.chapters, data.title || "Kakuyomu 文本");
+    showToast(`已读取 ${data.chapters.length} 个章节`);
+  } catch (error) {
+    showToast(error.message || "Kakuyomu 读取失败。");
+  } finally {
+    $("#fetch-kakuyomu").disabled = false;
+    $("#fetch-kakuyomu").textContent = "读取 Kakuyomu";
+  }
+}
+
+function compactMemory() {
+  return Object.fromEntries(
+    Object.entries(state.memory).map(([key, rows]) => [key, rows.slice(-40)]),
+  );
+}
+
+function splitForTranslation(text, maxLength = 2600) {
+  const paragraphs = cleanText(text).split(/\n{2,}|\n/).filter(Boolean);
+  const chunks = [];
+  let current = "";
+  paragraphs.forEach((paragraph) => {
+    if ((current + "\n" + paragraph).length > maxLength && current) {
+      chunks.push(current);
+      current = paragraph;
+    } else {
+      current = current ? `${current}\n${paragraph}` : paragraph;
+    }
+  });
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : [text];
+}
+
+async function translateChapter(chapter, chapterIndex, totalChapters) {
+  const settings = readSettings();
+  const chunks = splitForTranslation(chapter.source);
+  const translatedChunks = [];
+
+  for (let index = 0; index < chunks.length; index += 1) {
+    $("#progress-text").textContent = `正在翻译 ${chapterIndex + 1}/${totalChapters}：${index + 1}/${chunks.length}`;
+    const response = await fetch("/api/translate", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ profile: state.profile }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api: {
+          baseUrl: settings.baseUrl,
+          model: settings.model,
+          apiKey: settings.apiKey,
+        },
+        style: settings.style,
+        chapterTitle: chapter.title,
+        segmentIndex: index + 1,
+        segmentTotal: chunks.length,
+        sourceText: chunks[index],
+        memory: compactMemory(),
+      }),
     });
 
-    if (!response.ok) throw new Error(`request failed: ${response.status}`);
+    const data = await readJsonResponse(response, "翻译接口不可用。请在 Cloudflare Pages 或 Wrangler 环境中测试翻译。");
+    if (!response.ok) throw new Error(data.error || `翻译接口返回 ${response.status}`);
+    translatedChunks.push(data.translation || "");
+    mergeMemory(data.memory, chapter.title);
+    chapter.translation = translatedChunks.join("\n\n");
+    chapter.translated = true;
+    saveProject();
+    renderAll();
+  }
+}
 
-    const data = await response.json();
-    output.innerHTML = formatBiography(data.biography);
+async function readJsonResponse(response, fallbackMessage) {
+  try {
+    return await response.json();
+  } catch {
+    return { error: fallbackMessage };
+  }
+}
+
+async function translateCurrent() {
+  const chapter = activeChapter();
+  if (!chapter || state.translating) return;
+  state.translating = true;
+  setTranslateButtons(true);
+  try {
+    await translateChapter(chapter, state.chapters.indexOf(chapter), state.chapters.length);
+    $("#progress-text").textContent = "当前章翻译完成";
+    showToast("当前章已翻译完成。");
   } catch (error) {
-    output.innerHTML = formatBiography(localBiography(state.profile));
+    $("#progress-text").textContent = "翻译中断";
+    showToast(error.message || "翻译失败。");
+  } finally {
+    state.translating = false;
+    setTranslateButtons(false);
   }
 }
 
-function localBiography(profile) {
-  const [, talentName] = profile.tags[0];
-  const [, blessingName] = profile.tags[1];
-  const [, curseName] = profile.tags[2];
-
-  return `${profile.name} 在另一侧醒来时，鼻尖先闻到潮湿石墙与药草灰的气味。记录员把这个新生者登记为${profile.race[0]}，出身写作「${profile.origin}」。那天窗外有钟声，屋里的人都以为只是普通的转生，可水盆里的倒影却映出${profile.appearance}，像某个旧传说忽然翻到了下一页。
-
-少年时期的 ${profile.name} 并不擅长安分。选择成为「${profile.calling}」后，${profile.callingDescription}。天赋「${talentName}」第一次显现，是在一场本该失败的试炼里；祝福「${blessingName}」替这次冒险留住了最后一点余地，也让旁人开始相信，这个名字迟早会被写进边境酒馆的墙上。
-
-只是命运从不白送礼物。诅咒「${curseName}」像细线一样缠在旅途边缘，让每次胜利都带着新的麻烦。当能力合计达到 ${profile.total}，星门在北境迷宫深处再次发亮。没人知道那道光是在召唤勇者、怪物，还是一个终于准备好面对前世的人。`;
+async function translateAll() {
+  if (!state.chapters.length || state.translating) return;
+  state.translating = true;
+  setTranslateButtons(true);
+  try {
+    for (let index = 0; index < state.chapters.length; index += 1) {
+      state.activeChapterId = state.chapters[index].id;
+      renderAll();
+      await translateChapter(state.chapters[index], index, state.chapters.length);
+    }
+    $("#progress-text").textContent = "全部章节翻译完成";
+    showToast("全部章节已翻译完成。");
+  } catch (error) {
+    $("#progress-text").textContent = "翻译中断";
+    showToast(error.message || "翻译失败。");
+  } finally {
+    state.translating = false;
+    setTranslateButtons(false);
+    saveProject();
+    renderAll();
+  }
 }
 
-$("#begin-contract").addEventListener("click", () => openContractModal());
-$("#peek-rules").addEventListener("click", openCostModal);
+function setTranslateButtons(disabled) {
+  $("#translate-current").disabled = disabled;
+  $("#translate-all").disabled = disabled;
+}
 
-$("#modal-cancel").addEventListener("click", closeContractModal);
-$("#modal-confirm").addEventListener("click", () => {
-  if (state.modalMode === "cost") {
-    closeContractModal();
-    return;
-  }
+function mergeMemory(incoming, chapterTitle) {
+  if (!incoming || typeof incoming !== "object") return;
 
-  if (state.modalIndex < contractTexts.length - 1) {
-    state.modalIndex += 1;
-    renderModal();
-    return;
-  }
+  Object.entries(memoryMeta).forEach(([table, meta]) => {
+    const rows = Array.isArray(incoming[table]) ? incoming[table] : [];
+    rows.forEach((row) => {
+      const normalized = {};
+      meta.fields.forEach((field) => {
+        normalized[field] = cleanCell(row[field]);
+      });
+      if (!normalized.chapter) normalized.chapter = chapterTitle;
+      const signature = meta.key.map((field) => normalized[field]).join("::").toLowerCase();
+      if (!signature.replace(/:/g, "")) return;
 
-  closeContractModal();
-  startWeaving();
-});
+      const existing = state.memory[table].find((item) => {
+        const itemSignature = meta.key.map((field) => cleanCell(item[field])).join("::").toLowerCase();
+        return itemSignature === signature;
+      });
 
-$("#reroll-identity").addEventListener("click", () => {
-  state.profile = createProfile({
-    keepName: true,
-    keepAppearance: true,
-    keepTags: true,
-    keepStats: true,
+      if (existing) {
+        meta.fields.forEach((field) => {
+          if (normalized[field] && !String(existing[field] || "").includes(normalized[field])) {
+            existing[field] = existing[field] ? `${existing[field]}；${normalized[field]}` : normalized[field];
+          }
+        });
+      } else {
+        state.memory[table].push(normalized);
+      }
+    });
   });
-  refreshProfile();
-  renderAll();
-});
+}
 
-$("#reroll-appearance").addEventListener("click", () => {
-  state.profile = createProfile({
-    keepName: true,
-    keepRace: true,
-    keepOrigin: true,
-    keepTags: true,
-    keepStats: true,
+function cleanCell(value) {
+  if (Array.isArray(value)) return value.map(cleanCell).filter(Boolean).join("、").slice(0, 260);
+  return String(value ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/[<>]/g, "")
+    .trim()
+    .slice(0, 260);
+}
+
+function buildTxt() {
+  return state.chapters
+    .map((chapter) => `# ${chapter.title}\n\n${chapter.translation || ""}`.trim())
+    .join("\n\n");
+}
+
+function buildHtml() {
+  const body = state.chapters
+    .map(
+      (chapter) => `
+        <section>
+          <h2>${escapeHtml(chapter.title)}</h2>
+          ${formatParagraphs(chapter.translation || "")}
+        </section>
+      `,
+    )
+    .join("\n");
+  return `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(state.title || "译文")}</title>
+  <style>
+    body{max-width:820px;margin:40px auto;padding:0 20px;font-family:"Noto Serif SC","Songti SC",serif;line-height:1.9;color:#20242a}
+    h1{font-size:2rem} h2{margin-top:2.2rem;border-bottom:1px solid #ddd;padding-bottom:.4rem}
+    p{margin:0 0 1em}
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(state.title || "译文")}</h1>
+  ${body}
+</body>
+</html>`;
+}
+
+function download(filename, content, type = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function safeName(name, fallback = "novel-translation") {
+  return (name || fallback).replace(/[\\/:*?"<>|]+/g, "_").slice(0, 80) || fallback;
+}
+
+function bindEvents() {
+  $$(".tab").forEach((button) => button.addEventListener("click", () => switchTab(button.dataset.tab)));
+  $$("[data-memory-tab]").forEach((button) => {
+    button.addEventListener("click", () => switchMemoryTab(button.dataset.memoryTab));
   });
-  refreshProfile();
-  renderAll();
-});
 
-$("#reroll-points").addEventListener("click", () => {
-  state.pointPool = rollPointPool();
-  resetAbilityForCalling();
-  renderAll();
-});
+  $("#file-input").addEventListener("change", (event) => handleFile(event.target.files[0]));
+  const dropZone = $("#drop-zone");
+  ["dragenter", "dragover"].forEach((eventName) => {
+    dropZone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropZone.classList.add("dragging");
+    });
+  });
+  ["dragleave", "drop"].forEach((eventName) => {
+    dropZone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      dropZone.classList.remove("dragging");
+    });
+  });
+  dropZone.addEventListener("drop", (event) => handleFile(event.dataTransfer.files[0]));
 
-$("#reroll-tags").addEventListener("click", () => {
-  state.profile.tags = [pick(talents), pick(blessings), pick(curses)];
-  renderTags();
-});
+  $("#use-paste").addEventListener("click", () => {
+    const text = $("#paste-source").value;
+    if (!cleanText(text)) {
+      showToast("请先粘贴原文。");
+      return;
+    }
+    const title = $("#project-title").value.trim() || "粘贴文本";
+    setChapters([{ title: "正文", source: text }], title);
+    showToast("已载入粘贴文本。");
+  });
 
-$("#to-oracle").addEventListener("click", () => {
-  if (state.pointsLeft !== 0) {
-    $("#weave-note").textContent = "点数还没有分配完。别让命运替你把剩下的部分随手塞进幸运里。";
-    return;
-  }
+  $("#fetch-kakuyomu").addEventListener("click", fetchKakuyomu);
+  $("#translate-current").addEventListener("click", translateCurrent);
+  $("#translate-all").addEventListener("click", translateAll);
 
-  refreshProfile();
-  renderSummary();
-  showPage("oracle");
-});
+  $("#project-title").addEventListener("input", () => {
+    state.title = $("#project-title").value.trim();
+    saveProject();
+  });
 
-$("#back-to-weave").addEventListener("click", () => showPage("weave"));
-$("#generate-bio").addEventListener("click", generateBiography);
+  ["api-base-url", "api-model", "api-key", "style-select", "save-api-key"].forEach((id) => {
+    $(`#${id}`).addEventListener("change", saveSettings);
+  });
+
+  $("#clear-project").addEventListener("click", () => {
+    if (!window.confirm("清空当前项目和记忆表？")) return;
+    state.title = "";
+    state.chapters = [];
+    state.activeChapterId = null;
+    state.memory = createEmptyMemory();
+    $("#project-title").value = "";
+    localStorage.removeItem(STORAGE_KEY);
+    renderAll();
+  });
+
+  $("#export-memory").addEventListener("click", () => {
+    download(`${safeName(state.title, "memory")}-memory.json`, JSON.stringify(state.memory, null, 2), "application/json;charset=utf-8");
+  });
+  $("#download-txt").addEventListener("click", () => download(`${safeName(state.title)}.txt`, buildTxt()));
+  $("#download-html").addEventListener("click", () => download(`${safeName(state.title)}.html`, buildHtml(), "text/html;charset=utf-8"));
+  $("#download-project").addEventListener("click", () => {
+    const payload = {
+      title: state.title,
+      chapters: state.chapters,
+      memory: state.memory,
+      exportedAt: new Date().toISOString(),
+    };
+    download(`${safeName(state.title, "translation-project")}.json`, JSON.stringify(payload, null, 2), "application/json;charset=utf-8");
+  });
+}
+
+loadSettings();
+loadProject();
+bindEvents();
+renderAll();
