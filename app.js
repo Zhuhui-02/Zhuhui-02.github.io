@@ -484,7 +484,7 @@ function compactMemory() {
 }
 
 function splitForTranslation(text, maxLength = 2600) {
-  const paragraphs = cleanText(text).split(/\n{2,}|\n/).filter(Boolean);
+  const paragraphs = splitByNaturalBoundary(cleanText(text)).flatMap((part) => splitLongPart(part, maxLength));
   const chunks = [];
   let current = "";
   paragraphs.forEach((paragraph) => {
@@ -499,6 +499,89 @@ function splitForTranslation(text, maxLength = 2600) {
   return chunks.length ? chunks : [text];
 }
 
+function splitLongPart(text, maxLength) {
+  if (text.length <= maxLength) return [text];
+  const chunks = [];
+  for (let index = 0; index < text.length; index += maxLength) {
+    chunks.push(text.slice(index, index + maxLength));
+  }
+  return chunks;
+}
+
+function splitByNaturalBoundary(text) {
+  return text
+    .split(/(?<=[。！？!?」』）])\s*|\n{2,}|\n/)
+    .map((part) => cleanText(part))
+    .filter(Boolean);
+}
+
+function splitChunkInHalf(text) {
+  const parts = splitByNaturalBoundary(text);
+  if (parts.length <= 1) {
+    const midpoint = Math.ceil(text.length / 2);
+    return [text.slice(0, midpoint), text.slice(midpoint)].map(cleanText).filter(Boolean);
+  }
+
+  const target = Math.ceil(text.length / 2);
+  const first = [];
+  const second = [];
+  let count = 0;
+  parts.forEach((part) => {
+    if (count < target) {
+      first.push(part);
+      count += part.length;
+    } else {
+      second.push(part);
+    }
+  });
+  return [first.join("\n"), second.join("\n")].map(cleanText).filter(Boolean);
+}
+
+function isRiskRejection(error) {
+  return /high risk|rejected|risk|safety|安全|风险|拒绝/i.test(error?.message || "");
+}
+
+async function requestTranslationSegment({ settings, chapter, sourceText, segmentIndex, segmentTotal, retryDepth = 0 }) {
+  const response = await fetch("/api/translate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      style: settings.style,
+      chapterTitle: chapter.title,
+      segmentIndex,
+      segmentTotal,
+      sourceText,
+      memory: compactMemory(),
+    }),
+  });
+
+  const data = await readJsonResponse(response, "翻译接口不可用。请在 Cloudflare Pages 或 Wrangler 环境中测试翻译。");
+  if (response.ok) return [data];
+
+  const error = new Error(data.error || `翻译接口返回 ${response.status}`);
+  if (isRiskRejection(error) && retryDepth < 3 && sourceText.length > 180) {
+    const smallerChunks = splitChunkInHalf(sourceText);
+    if (smallerChunks.length > 1) {
+      const results = [];
+      for (let index = 0; index < smallerChunks.length; index += 1) {
+        $("#progress-text").textContent = `片段被安全策略拦截，正在拆小重试：${retryDepth + 1}.${index + 1}`;
+        const nested = await requestTranslationSegment({
+          settings,
+          chapter,
+          sourceText: smallerChunks[index],
+          segmentIndex,
+          segmentTotal,
+          retryDepth: retryDepth + 1,
+        });
+        results.push(...nested);
+      }
+      return results;
+    }
+  }
+
+  throw error;
+}
+
 async function translateChapter(chapter, chapterIndex, totalChapters) {
   const settings = readSettings();
   const chunks = splitForTranslation(chapter.source);
@@ -506,23 +589,17 @@ async function translateChapter(chapter, chapterIndex, totalChapters) {
 
   for (let index = 0; index < chunks.length; index += 1) {
     $("#progress-text").textContent = `正在翻译 ${chapterIndex + 1}/${totalChapters}：${index + 1}/${chunks.length}`;
-    const response = await fetch("/api/translate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        style: settings.style,
-        chapterTitle: chapter.title,
-        segmentIndex: index + 1,
-        segmentTotal: chunks.length,
-        sourceText: chunks[index],
-        memory: compactMemory(),
-      }),
+    const results = await requestTranslationSegment({
+      settings,
+      chapter,
+      sourceText: chunks[index],
+      segmentIndex: index + 1,
+      segmentTotal: chunks.length,
     });
-
-    const data = await readJsonResponse(response, "翻译接口不可用。请在 Cloudflare Pages 或 Wrangler 环境中测试翻译。");
-    if (!response.ok) throw new Error(data.error || `翻译接口返回 ${response.status}`);
-    translatedChunks.push(data.translation || "");
-    mergeMemory(data.memory, chapter.title);
+    results.forEach((data) => {
+      translatedChunks.push(data.translation || "");
+      mergeMemory(data.memory, chapter.title);
+    });
     chapter.translation = translatedChunks.join("\n\n");
     chapter.translated = true;
     saveProject();
