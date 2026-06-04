@@ -426,6 +426,11 @@ pre,
   margin-bottom: 0;
 }
 
+.error-text {
+  color: #a53434;
+  font-weight: 760;
+}
+
 .command-bar {
   display: flex;
   align-items: center;

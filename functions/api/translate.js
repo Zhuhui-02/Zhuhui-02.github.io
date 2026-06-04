@@ -44,7 +44,7 @@ export async function onRequestPost({ request, env }) {
           { role: "user", content: prompt },
         ],
         temperature: 0.35,
-        max_completion_tokens: 4096,
+        max_tokens: 4096,
       }),
     });
 
@@ -60,6 +60,17 @@ export async function onRequestPost({ request, env }) {
   } catch (error) {
     return json({ error: error.message || "翻译失败。" }, 500);
   }
+}
+
+export async function onRequestGet({ env }) {
+  const apiKey = env.MIMO_API_KEY || env.TRANSLATION_API_KEY || env.OPENAI_API_KEY;
+  return json({
+    ok: true,
+    provider: "mimo",
+    baseUrl: (env.MIMO_BASE_URL || MIMO_BASE_URL).replace(/\/$/, ""),
+    model: env.MIMO_MODEL || MIMO_MODEL,
+    hasApiKey: Boolean(apiKey),
+  });
 }
 
 export async function onRequestOptions() {

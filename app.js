@@ -214,6 +214,14 @@ function formatParagraphs(text) {
     .join("");
 }
 
+function showTranslationError(error) {
+  const message = error?.message || "翻译失败。";
+  $("#translation-state").textContent = "翻译失败";
+  $("#translation-preview").innerHTML = `
+    <p class="error-text">${escapeHtml(message)}</p>
+  `;
+}
+
 function renderMemoryTable() {
   const meta = memoryMeta[state.activeMemoryTab];
   $("#memory-title").textContent = meta.title;
@@ -437,6 +445,7 @@ async function translateCurrent() {
     showToast("当前章已翻译完成。");
   } catch (error) {
     $("#progress-text").textContent = "翻译中断";
+    showTranslationError(error);
     showToast(error.message || "翻译失败。");
   } finally {
     state.translating = false;
@@ -458,6 +467,7 @@ async function translateAll() {
     showToast("全部章节已翻译完成。");
   } catch (error) {
     $("#progress-text").textContent = "翻译中断";
+    showTranslationError(error);
     showToast(error.message || "翻译失败。");
   } finally {
     state.translating = false;
