@@ -465,6 +465,7 @@
       current: 0,
       shown: false,
       filtered: [],
+      round: [],
       history: [],
       progress: JSON.parse(localStorage.getItem(storageKey) || "{}")
     };
@@ -503,9 +504,12 @@
         state.filtered = cards.filter((card) => !family || card.family === family);
         missedOnly.checked = false;
       }
-      if (!state.filtered.includes(cards[state.current])) {
+      const current = currentCard();
+      if (!state.filtered.includes(current)) {
+        startRound();
         pickRandom(false);
       } else {
+        startRound(current.id);
         render();
       }
       renderDeck();
@@ -515,12 +519,24 @@
       return cards[state.current] || cards[0];
     }
 
+    function shuffle(items) {
+      const shuffled = items.slice();
+      for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+      }
+      return shuffled;
+    }
+
+    function startRound(excludeId) {
+      state.round = shuffle(state.filtered.filter((card) => card.id !== excludeId));
+    }
+
     function pickRandom(pushHistory = true) {
       if (!state.filtered.length) return;
       const current = currentCard();
-      let pool = state.filtered.filter((card) => card.id !== current?.id);
-      if (!pool.length) pool = state.filtered;
-      const next = pool[Math.floor(Math.random() * pool.length)];
+      if (!state.round.length) startRound(current?.id);
+      const next = state.round.pop() || current;
       if (pushHistory && current) state.history.push(current.id);
       state.current = cards.findIndex((card) => card.id === next.id);
       state.shown = false;
@@ -592,6 +608,7 @@
 
     hydrateFilters();
     state.filtered = cards.slice();
+    startRound();
     pickRandom(false);
 
     $("prevBtn").addEventListener("click", goPrevious);
@@ -611,6 +628,7 @@
       if (index >= 0) {
         state.history.push(currentCard().id);
         state.current = index;
+        state.round = state.round.filter((card) => card.id !== button.dataset.id);
         state.shown = false;
         render();
         renderDeck();
