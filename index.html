@@ -1,173 +1,632 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="面向日本轻小说的翻译工作台，支持 TXT、EPUB、在线连载网页输入，自动维护术语和角色记忆表，并提供预览与下载。"
-    />
-    <title>轻小说记忆翻译器</title>
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="./styles.css" />
-    <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script defer src="./app.js"></script>
-  </head>
-  <body>
-    <main class="shell">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Novel Memory Translator</p>
-          <h1>轻小说记忆翻译器</h1>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>植物辨识复习</title>
+  <script src="./data.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #19211b;
+      --muted: #5c665e;
+      --line: #d6ded2;
+      --paper: #f7f6ef;
+      --panel: #ffffff;
+      --accent: #0f7b62;
+      --accent-2: #b83b4d;
+      --accent-3: #d79c2b;
+      --shadow: 0 14px 45px rgba(31, 46, 37, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+    }
+
+    aside {
+      border-right: 1px solid var(--line);
+      background: #fbfaf5;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    main {
+      padding: 22px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      font-weight: 760;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: var(--panel);
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 22px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--ink);
+      padding: 10px 11px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      opacity: 0;
+      position: absolute;
+    }
+
+    .switch span {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #dfe5dc;
+      transition: 0.18s ease;
+    }
+
+    .switch span::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 3px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+      transition: 0.18s ease;
+    }
+
+    .switch input:checked + span {
+      background: var(--accent);
+    }
+
+    .switch input:checked + span::after {
+      transform: translateX(20px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      padding: 8px 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    .viewer {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 14px;
+    }
+
+    .image-stage {
+      min-height: 320px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .image-stage img {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .answer {
+      min-height: 76px;
+      border-left: 5px solid var(--accent);
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .answer.hidden {
+      border-left-color: var(--line);
+      color: transparent;
+      user-select: none;
+    }
+
+    .answer.hidden * {
+      color: transparent !important;
+    }
+
+    .answer h2 {
+      margin: 0 0 4px;
+      font-size: 24px;
+      line-height: 1.15;
+      font-weight: 760;
+    }
+
+    .answer p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .button {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 12px 14px;
+      min-height: 46px;
+      background: var(--ink);
+      color: white;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+      white-space: nowrap;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 22px rgba(25, 33, 27, 0.15);
+    }
+
+    .button.secondary {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    .button.good {
+      background: var(--accent);
+    }
+
+    .button.bad {
+      background: var(--accent-2);
+    }
+
+    .deck {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      overflow: auto;
+      padding-right: 3px;
+    }
+
+    .thumb {
+      aspect-ratio: 1;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      padding: 0;
+      overflow: hidden;
+      background: #fff;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .thumb.active {
+      border-color: var(--accent);
+    }
+
+    .thumb.good::after,
+    .thumb.bad::after {
+      position: absolute;
+      right: 5px;
+      bottom: 5px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .thumb.good::after {
+      content: "✓";
+      background: var(--accent);
+    }
+
+    .thumb.bad::after {
+      content: "!";
+      background: var(--accent-2);
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      main {
+        min-height: 74vh;
+      }
+
+      .deck {
+        grid-template-columns: repeat(8, 1fr);
+        max-height: 92px;
+      }
+
+      .controls {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 520px) {
+      aside,
+      main {
+        padding: 14px;
+      }
+
+      .stats {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .stat {
+        padding: 10px 7px;
+      }
+
+      .stat strong {
+        font-size: 18px;
+      }
+
+      .deck {
+        grid-template-columns: repeat(6, 1fr);
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .answer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .answer h2 {
+        font-size: 21px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div>
+        <h1>植物辨识复习</h1>
+        <div class="meta">2026 生物学综合野外实习</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><strong id="totalCount">0</strong><span>题库</span></div>
+        <div class="stat"><strong id="knownCount">0</strong><span>会</span></div>
+        <div class="stat"><strong id="missedCount">0</strong><span>不会</span></div>
+        <div class="stat"><strong id="leftCount">0</strong><span>待练</span></div>
+      </div>
+      <div class="field">
+        <label for="familyFilter">科</label>
+        <select id="familyFilter"></select>
+      </div>
+      <label class="toggle-row">
+        <span>只练不会</span>
+        <span class="switch"><input id="missedOnly" type="checkbox"><span></span></span>
+      </label>
+      <button class="button secondary" id="resetBtn" type="button">↺ 清空记录</button>
+      <div class="deck" id="deck"></div>
+    </aside>
+    <main>
+      <div class="topbar">
+        <div class="pill" id="position">第 1 / 54 张</div>
+        <div class="pill" id="familyPill">全部</div>
+      </div>
+      <section class="viewer">
+        <div class="image-stage">
+          <img id="plantImage" alt="">
         </div>
-        <div class="status-pill" id="project-status">未载入文本</div>
-      </header>
-
-      <section class="workspace" aria-label="翻译工作台">
-        <aside class="sidebar">
-          <nav class="tabs" aria-label="工作区">
-            <button class="tab active" data-tab="source" type="button">来源</button>
-            <button class="tab" data-tab="translate" type="button">翻译</button>
-            <button class="tab" data-tab="memory" type="button">记忆表</button>
-            <button class="tab" data-tab="export" type="button">导出</button>
-          </nav>
-
-          <section class="panel settings-panel">
-            <h2>Mimo 翻译引擎</h2>
-            <div class="engine-card">
-              <strong>mimo-v2.5-pro</strong>
-              <span>API 地址和模型由服务器端固定，密钥只从 Cloudflare 环境变量读取。</span>
-            </div>
-            <label>
-              <span>译文风格</span>
-              <select id="style-select">
-                <option value="webnovel">中文网文流畅体</option>
-                <option value="published">出版轻小说体</option>
-                <option value="literal">偏忠实直译</option>
-              </select>
-            </label>
-          </section>
-
-          <section class="panel chapter-panel">
-            <div class="panel-heading">
-              <h2>章节</h2>
-              <button class="ghost small" id="clear-project" type="button">清空</button>
-            </div>
-            <div class="chapter-list" id="chapter-list"></div>
-          </section>
-        </aside>
-
-        <section class="main-stage">
-          <section class="view active" data-view="source">
-            <div class="grid two">
-              <section class="panel">
-                <h2>导入文本</h2>
-                <div class="drop-zone" id="drop-zone">
-                  <input id="file-input" type="file" accept=".txt,.epub,text/plain,application/epub+zip" />
-                  <strong>拖入 TXT 或 EPUB</strong>
-                  <span>也可以点击选择文件；EPUB 会按 spine 顺序拆成章节。</span>
-                </div>
-                <label>
-                  <span>项目名</span>
-                  <input id="project-title" type="text" placeholder="例如：某轻小说第一卷" />
-                </label>
-              </section>
-
-              <section class="panel">
-                <h2>在线连载网页</h2>
-                <label>
-                  <span>作品或章节 URL</span>
-                  <input id="source-url" type="url" placeholder="Kakuyomu / Syosetu / Narou / 其他章节页 URL" />
-                </label>
-                <button class="primary" id="fetch-source" type="button">读取网页</button>
-                <p class="hint">优先支持 Kakuyomu、小説家になろう/Syosetu/Narou、Hameln、Novelup+；其他日文小说页会尝试通用正文解析。</p>
-              </section>
-            </div>
-
-            <section class="panel">
-              <div class="panel-heading">
-                <h2>手动粘贴</h2>
-                <button class="ghost small" id="use-paste" type="button">载入为单章</button>
-              </div>
-              <textarea id="paste-source" rows="12" placeholder="把日文原文粘贴到这里。"></textarea>
-            </section>
-          </section>
-
-          <section class="view" data-view="translate">
-            <div class="split-preview">
-              <section class="panel preview-panel">
-                <div class="panel-heading">
-                  <h2>原文预览</h2>
-                  <span id="source-count">0 字符</span>
-                </div>
-                <pre id="source-preview"></pre>
-              </section>
-
-              <section class="panel preview-panel">
-                <div class="panel-heading">
-                  <h2>译文预览</h2>
-                  <span id="translation-state">等待翻译</span>
-                </div>
-                <article id="translation-preview" class="translation-preview"></article>
-              </section>
-            </div>
-
-            <section class="panel command-bar">
-              <div>
-                <strong id="active-chapter-title">未选择章节</strong>
-                <span id="progress-text">准备就绪</span>
-              </div>
-              <div class="actions">
-                <button class="ghost" id="translate-current" type="button">翻译当前章</button>
-                <button class="primary" id="translate-all" type="button">翻译全部</button>
-              </div>
-            </section>
-          </section>
-
-          <section class="view" data-view="memory">
-            <div class="memory-toolbar">
-              <button class="ghost small active" data-memory-tab="terms" type="button">术语</button>
-              <button class="ghost small" data-memory-tab="timeline" type="button">时空</button>
-              <button class="ghost small" data-memory-tab="characters" type="button">角色</button>
-              <button class="ghost small" data-memory-tab="relationships" type="button">社交</button>
-              <button class="ghost small" data-memory-tab="directives" type="button">任务约定</button>
-              <button class="ghost small" data-memory-tab="events" type="button">事件</button>
-              <button class="ghost small" data-memory-tab="items" type="button">物品</button>
-            </div>
-            <section class="panel table-panel">
-              <div class="panel-heading">
-                <h2 id="memory-title">术语表</h2>
-                <button class="ghost small" id="export-memory" type="button">下载记忆 JSON</button>
-              </div>
-              <div class="table-wrap">
-                <table id="memory-table"></table>
-              </div>
-            </section>
-          </section>
-
-          <section class="view" data-view="export">
-            <div class="grid three">
-              <section class="panel export-card">
-                <h2>TXT</h2>
-                <p>合并所有已翻译章节，适合继续排版或校对。</p>
-                <button class="primary" id="download-txt" type="button">下载 TXT</button>
-              </section>
-              <section class="panel export-card">
-                <h2>HTML</h2>
-                <p>保留章节标题和段落结构，可直接在浏览器中打开。</p>
-                <button class="primary" id="download-html" type="button">下载 HTML</button>
-              </section>
-              <section class="panel export-card">
-                <h2>项目备份</h2>
-                <p>包含原文、译文、API 设置外的全部记忆表。</p>
-                <button class="primary" id="download-project" type="button">下载 JSON</button>
-              </section>
-            </div>
-          </section>
-        </section>
+        <div class="answer hidden" id="answer">
+          <div>
+            <h2 id="answerName">植物名</h2>
+            <p id="answerFamily">科名</p>
+          </div>
+          <div class="pill" id="sourceNo">#1</div>
+        </div>
       </section>
+      <div class="controls">
+        <button class="button secondary" id="prevBtn" type="button">‹ 上一张</button>
+        <button class="button" id="revealBtn" type="button">显示答案</button>
+        <button class="button good" id="knownBtn" type="button">✓ 会</button>
+        <button class="button bad" id="missedBtn" type="button">! 不会</button>
+      </div>
     </main>
+  </div>
+  <script>
+    const cards = window.PLANT_CARDS || [];
+    const storageKey = "plant-quiz-progress-v1";
+    const state = {
+      current: 0,
+      shown: false,
+      filtered: [],
+      history: [],
+      progress: JSON.parse(localStorage.getItem(storageKey) || "{}")
+    };
 
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  </body>
+    const $ = (id) => document.getElementById(id);
+    const image = $("plantImage");
+    const answer = $("answer");
+    const answerName = $("answerName");
+    const answerFamily = $("answerFamily");
+    const position = $("position");
+    const familyPill = $("familyPill");
+    const familyFilter = $("familyFilter");
+    const missedOnly = $("missedOnly");
+    const deck = $("deck");
+
+    function saveProgress() {
+      localStorage.setItem(storageKey, JSON.stringify(state.progress));
+    }
+
+    function families() {
+      return [...new Set(cards.map((card) => card.family).filter(Boolean))].sort((a, b) => a.localeCompare(b, "zh-CN"));
+    }
+
+    function hydrateFilters() {
+      familyFilter.innerHTML = `<option value="">全部</option>` + families().map((family) => `<option value="${family}">${family}</option>`).join("");
+    }
+
+    function applyFilters() {
+      const family = familyFilter.value;
+      state.filtered = cards.filter((card) => {
+        const familyMatch = !family || card.family === family;
+        const missedMatch = !missedOnly.checked || state.progress[card.id] === "bad";
+        return familyMatch && missedMatch;
+      });
+      if (!state.filtered.length) {
+        state.filtered = cards.filter((card) => !family || card.family === family);
+        missedOnly.checked = false;
+      }
+      if (!state.filtered.includes(cards[state.current])) {
+        pickRandom(false);
+      } else {
+        render();
+      }
+      renderDeck();
+    }
+
+    function currentCard() {
+      return cards[state.current] || cards[0];
+    }
+
+    function pickRandom(pushHistory = true) {
+      if (!state.filtered.length) return;
+      const current = currentCard();
+      let pool = state.filtered.filter((card) => card.id !== current?.id);
+      if (!pool.length) pool = state.filtered;
+      const next = pool[Math.floor(Math.random() * pool.length)];
+      if (pushHistory && current) state.history.push(current.id);
+      state.current = cards.findIndex((card) => card.id === next.id);
+      state.shown = false;
+      render();
+      renderDeck();
+    }
+
+    function goPrevious() {
+      const last = state.history.pop();
+      if (!last) return;
+      const index = cards.findIndex((card) => card.id === last);
+      if (index >= 0) {
+        state.current = index;
+        state.shown = false;
+        render();
+        renderDeck();
+      }
+    }
+
+    function mark(value) {
+      const card = currentCard();
+      state.progress[card.id] = value;
+      saveProgress();
+      state.shown = true;
+      render();
+      renderDeck();
+      setTimeout(() => pickRandom(true), 180);
+    }
+
+    function stats() {
+      const known = Object.values(state.progress).filter((value) => value === "good").length;
+      const missed = Object.values(state.progress).filter((value) => value === "bad").length;
+      $("totalCount").textContent = cards.length;
+      $("knownCount").textContent = known;
+      $("missedCount").textContent = missed;
+      $("leftCount").textContent = Math.max(cards.length - known, 0);
+    }
+
+    function render() {
+      const card = currentCard();
+      if (!card) return;
+      image.src = card.image;
+      image.alt = state.shown ? card.name : "待辨识植物";
+      answerName.textContent = card.name;
+      answerFamily.textContent = card.family || "未标注科名";
+      $("sourceNo").textContent = `#${card.number}`;
+      position.textContent = `第 ${card.number} / ${cards.length} 张`;
+      familyPill.textContent = familyFilter.value || "全部";
+      answer.classList.toggle("hidden", !state.shown);
+      $("revealBtn").textContent = state.shown ? "隐藏答案" : "显示答案";
+      stats();
+    }
+
+    function renderDeck() {
+      const visible = state.filtered.length ? state.filtered : cards;
+      deck.innerHTML = visible.map((card) => {
+        const status = state.progress[card.id] || "";
+        const active = card.id === currentCard()?.id ? " active" : "";
+        return `<button class="thumb ${status}${active}" type="button" data-id="${card.id}" title="${card.name}"><img loading="lazy" src="${card.image}" alt=""></button>`;
+      }).join("");
+    }
+
+    function reset() {
+      state.progress = {};
+      saveProgress();
+      missedOnly.checked = false;
+      applyFilters();
+    }
+
+    hydrateFilters();
+    state.filtered = cards.slice();
+    pickRandom(false);
+
+    $("prevBtn").addEventListener("click", goPrevious);
+    $("revealBtn").addEventListener("click", () => {
+      state.shown = !state.shown;
+      render();
+    });
+    $("knownBtn").addEventListener("click", () => mark("good"));
+    $("missedBtn").addEventListener("click", () => mark("bad"));
+    $("resetBtn").addEventListener("click", reset);
+    familyFilter.addEventListener("change", applyFilters);
+    missedOnly.addEventListener("change", applyFilters);
+    deck.addEventListener("click", (event) => {
+      const button = event.target.closest(".thumb");
+      if (!button) return;
+      const index = cards.findIndex((card) => card.id === button.dataset.id);
+      if (index >= 0) {
+        state.history.push(currentCard().id);
+        state.current = index;
+        state.shown = false;
+        render();
+        renderDeck();
+      }
+    });
+    window.addEventListener("keydown", (event) => {
+      if (event.key === " ") {
+        event.preventDefault();
+        state.shown = !state.shown;
+        render();
+      }
+      if (event.key === "ArrowRight") pickRandom(true);
+      if (event.key === "ArrowLeft") goPrevious();
+      if (event.key === "1") mark("good");
+      if (event.key === "2") mark("bad");
+    });
+  </script>
+</body>
 </html>
