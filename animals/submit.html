@@ -31,8 +31,9 @@
     .status { color:var(--muted); font-size:13px; }
     button { border:1px solid var(--sea); border-radius:7px; background:var(--sea); color:#fff; padding:11px 15px; font:inherit; font-weight:700; cursor:pointer; }
     button:disabled { opacity:.48; cursor:not-allowed; }
-    .notice { display:none; border-left:3px solid var(--gold, #bb8d20); padding:10px 12px; background:#fff8df; color:#5a4b19; line-height:1.55; font-size:13px; }
+    .notice { display:none; border-left:3px solid var(--coral); padding:10px 12px; background:#fff1ef; color:#702d26; line-height:1.55; font-size:13px; }
     .notice.show { display:block; }
+    .notice.success { border-color:var(--sea); background:#edf8f6; color:#16554b; }
     @media (max-width:580px) { .page { width:min(100% - 24px,880px); padding-top:20px; } header { flex-direction:column; } .actions { align-items:stretch; flex-direction:column; } button { width:100%; } }
   </style>
 </head>
@@ -53,15 +54,15 @@
       </div>
       <div class="field">
         <label for="photos">图片</label>
-        <div class="upload"><input id="photos" type="file" accept="image/*" multiple required><p class="help">可一次选择同一物种的多张照片。</p></div>
+        <div class="upload"><input id="photos" type="file" accept="image/*" multiple required><p class="help">一次最多 8 张，提交前会自动压缩以便保存。</p></div>
         <div class="previews" id="previews" aria-live="polite"></div>
       </div>
       <div class="field">
         <label for="notes">补充说明</label>
         <textarea id="notes" placeholder="例如：腹面、背面、螯足细节、采集地点或拍摄日期"></textarea>
       </div>
-      <div class="notice" id="notice">将打开 GitHub 投稿页。请把刚才选择的照片拖入其附件区域；物种名称和说明已复制到剪贴板。</div>
-      <div class="actions"><span class="status" id="status">尚未选择图片</span><button id="submitButton" type="submit" disabled>前往投稿</button></div>
+      <div class="notice" id="notice" role="status"></div>
+      <div class="actions"><span class="status" id="status">尚未选择图片</span><button id="submitButton" type="submit" disabled>提交图片</button></div>
     </form>
   </main>
   <script>
@@ -75,33 +76,83 @@
     const submitButton = document.getElementById("submitButton");
     const notes = document.getElementById("notes");
     const notice = document.getElementById("notice");
+    let selectedPhotos = [];
+    const maxPhotos = 8;
+    const maxPhotoBytes = 850_000;
     species.innerHTML = `<option value="">选择已收录物种</option>${cards.map((card) => `<option value="${card.name}">${card.name}</option>`).join("")}<option value="__new__">新增物种</option>`;
     const presetSpecies = new URLSearchParams(window.location.search).get("species");
     if (presetSpecies && cards.some((card) => card.name === presetSpecies)) species.value = presetSpecies;
 
     species.addEventListener("change", () => { const isNew = species.value === "__new__"; customSpeciesField.hidden = !isNew; customSpecies.required = isNew; });
-    photos.addEventListener("change", () => {
+    photos.addEventListener("change", async () => {
+      const files = [...photos.files];
       previews.innerHTML = "";
-      [...photos.files].forEach((file) => {
+      selectedPhotos = [];
+      notice.className = "notice";
+      if (!files.length) { status.textContent = "尚未选择图片"; submitButton.disabled = true; return; }
+      if (files.length > maxPhotos) { status.textContent = `一次最多选择 ${maxPhotos} 张图片`; submitButton.disabled = true; return; }
+      status.textContent = "正在优化图片…";
+      submitButton.disabled = true;
+      try {
+        selectedPhotos = await Promise.all(files.map(optimizePhoto));
+      } catch (error) {
+        status.textContent = error.message || "图片处理失败，请换一张图片重试。";
+        return;
+      }
+      selectedPhotos.forEach((file) => {
         const item = document.createElement("div"); item.className = "preview";
         const image = document.createElement("img"); image.src = URL.createObjectURL(file); image.alt = file.name;
         const label = document.createElement("span"); label.textContent = file.name;
         item.append(image, label); previews.append(item);
       });
-      const count = photos.files.length; status.textContent = count ? `已选择 ${count} 张图片` : "尚未选择图片"; submitButton.disabled = !count;
+      status.textContent = `已准备 ${selectedPhotos.length} 张图片`; submitButton.disabled = false;
     });
     document.getElementById("submissionForm").addEventListener("submit", async (event) => {
       event.preventDefault();
       const name = species.value === "__new__" ? customSpecies.value.trim() : species.value;
-      if (!name || !photos.files.length) return;
-      const draft = `物种：${name}\n图片：${photos.files.length} 张\n补充说明：${notes.value.trim() || "无"}`;
-      try { await navigator.clipboard.writeText(draft); } catch (_) {}
-      notice.classList.add("show");
-      const url = new URL("https://github.com/Zhuhui-02/Zhuhui-02.github.io/issues/new");
-      url.searchParams.set("template", "animal-photo-submission.yml");
-      url.searchParams.set("title", `动物图片补充：${name}`);
-      window.open(url, "_blank", "noopener");
+      if (!name || !selectedPhotos.length) return;
+      const formData = new FormData();
+      formData.append("species", name);
+      formData.append("notes", notes.value.trim());
+      selectedPhotos.forEach((photo) => formData.append("photos", photo));
+      submitButton.disabled = true; submitButton.textContent = "提交中…"; status.textContent = "正在保存图片…";
+      try {
+        const response = await fetch("/api/animal-submissions", { method: "POST", body: formData });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "提交失败，请稍后重试。");
+        notice.textContent = `已提交 ${result.photoCount} 张图片，等待管理员审核后加入题库。`;
+        notice.className = "notice show success";
+        status.textContent = "投稿完成"; photos.value = ""; selectedPhotos = [];
+      } catch (error) {
+        notice.textContent = error.message || "提交失败，请稍后重试。";
+        notice.className = "notice show"; status.textContent = "投稿未完成";
+      } finally {
+        submitButton.textContent = "提交图片";
+        submitButton.disabled = !selectedPhotos.length;
+      }
     });
+
+    async function optimizePhoto(file) {
+      if (!file.type.startsWith("image/")) throw new Error("只能上传图片文件。");
+      const bitmap = await createImageBitmap(file);
+      const maxSide = 1600;
+      let width = bitmap.width;
+      let height = bitmap.height;
+      if (Math.max(width, height) > maxSide) {
+        const scale = maxSide / Math.max(width, height); width = Math.round(width * scale); height = Math.round(height * scale);
+      }
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d", { alpha: false });
+      if (!context) { bitmap.close(); throw new Error("当前浏览器无法处理图片，请换用较新的浏览器重试。"); }
+      for (const quality of [0.84, 0.74, 0.64, 0.54]) {
+        canvas.width = width; canvas.height = height;
+        context.fillStyle = "#ffffff"; context.fillRect(0, 0, width, height); context.drawImage(bitmap, 0, 0, width, height);
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+        if (blob && blob.size <= maxPhotoBytes) { bitmap.close(); return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "photo"}.jpg`, { type: "image/jpeg" }); }
+        width = Math.round(width * 0.82); height = Math.round(height * 0.82);
+      }
+      bitmap.close(); throw new Error("图片压缩后仍过大，请换一张图片重试。");
+    }
   </script>
 </body>
 </html>
