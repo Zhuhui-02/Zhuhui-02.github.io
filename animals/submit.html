@@ -76,6 +76,8 @@
     const notes = document.getElementById("notes");
     const notice = document.getElementById("notice");
     species.innerHTML = `<option value="">选择已收录物种</option>${cards.map((card) => `<option value="${card.name}">${card.name}</option>`).join("")}<option value="__new__">新增物种</option>`;
+    const presetSpecies = new URLSearchParams(window.location.search).get("species");
+    if (presetSpecies && cards.some((card) => card.name === presetSpecies)) species.value = presetSpecies;
 
     species.addEventListener("change", () => { const isNew = species.value === "__new__"; customSpeciesField.hidden = !isNew; customSpecies.required = isNew; });
     photos.addEventListener("change", () => {
