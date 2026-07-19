@@ -61,7 +61,7 @@ export async function onRequestGet({ env }) {
       const speciesKey = match[1];
       (submittedImages[speciesKey] ||= []).push(`/${entry.path.split("/").map(encodeURIComponent).join("/")}`);
     }
-    return json({ ok: true, configured: true, submittedImages }, 200, "public, max-age=30");
+    return json({ ok: true, configured: true, submittedImages });
   } catch (error) {
     return json({ ok: false, configured: true, submittedImages: {}, error: "投稿图片暂时无法加载。" }, 502);
   }

@@ -202,21 +202,28 @@
         const result = await response.json();
         if (!response.ok || !result.ok) return;
         let changed = false;
+        let updatedCardId = null;
         for (const [speciesKey, images] of Object.entries(result.submittedImages || {})) {
           const card = cards.find((item) => speciesPathKey(item.name) === speciesKey);
           if (card) {
             const additions = images.filter((path) => !card.images.includes(path));
-            if (additions.length) { card.images.push(...additions); changed = true; }
+            if (additions.length) { card.images.push(...additions); updatedCardId = card.id; changed = true; }
           } else if (images.length) {
-            cards.push({ id: `animal-submission-${speciesKey}`, number: cards.length + 1, name: speciesKey.replace(/-/g, " "), images });
+            const id = `animal-submission-${speciesKey}`;
+            cards.push({ id, number: cards.length + 1, name: speciesKey.replace(/-/g, " "), images });
+            updatedCardId = id;
             changed = true;
           }
         }
-        if (changed) initialize();
+        if (changed && updatedCardId) {
+          state.current = cards.findIndex((card) => card.id === updatedCardId);
+          state.angle = 0; state.shown = false; state.history = [];
+          state.filtered = cards.slice(); startRound(updatedCardId); render(); renderDeck();
+        }
       } catch (_) {}
     }
 
-    initialize(); loadSubmittedImages();
+    initialize(); loadSubmittedImages(); window.addEventListener("focus", loadSubmittedImages);
     $("prevBtn").addEventListener("click", goPrevious); $("nextBtn").addEventListener("click", () => pickRandom(true));
     $("revealBtn").addEventListener("click", () => { state.shown = !state.shown; render(); });
     $("knownBtn").addEventListener("click", () => mark("good")); $("missedBtn").addEventListener("click", () => mark("bad"));
