@@ -29,22 +29,17 @@ export async function onRequestPost({ request, env }) {
     const submissionId = crypto.randomUUID();
     const submittedAt = new Date().toISOString();
     const directory = `submissions/animals/${safePathSegment(species)}/${submittedAt.slice(0, 10)}-${submissionId}`;
-    const uploaded = [];
-
-    for (const [index, photo] of photos.entries()) {
-      const extension = ALLOWED_TYPES.get(photo.type);
-      const path = `${directory}/${String(index + 1).padStart(2, "0")}.${extension}`;
-      await putFile(token, path, await photo.arrayBuffer(), `Add animal submission: ${species}`);
-      uploaded.push({ path, type: photo.type, size: photo.size });
-    }
-
+    const uploaded = photos.map((photo, index) => ({
+      path: `${directory}/${String(index + 1).padStart(2, "0")}.${ALLOWED_TYPES.get(photo.type)}`,
+      type: photo.type,
+      size: photo.size,
+    }));
     const metadata = { id: submissionId, species, notes, submittedAt, photos: uploaded };
-    await putFile(
-      token,
-      `${directory}/submission.json`,
-      new TextEncoder().encode(JSON.stringify(metadata, null, 2)).buffer,
-      `Add animal submission metadata: ${species}`,
-    );
+    const files = [
+      ...photos.map((photo, index) => ({ path: uploaded[index].path, bytes: photo.arrayBuffer() })),
+      { path: `${directory}/submission.json`, bytes: Promise.resolve(new TextEncoder().encode(JSON.stringify(metadata, null, 2)).buffer) },
+    ];
+    await commitSubmission(token, files, `Add animal submission: ${species}`);
 
     return json({ ok: true, submissionId, photoCount: uploaded.length });
   } catch (error) {
@@ -56,9 +51,24 @@ export async function onRequestGet({ env }) {
   return json({ ok: true, configured: Boolean(env.GITHUB_UPLOAD_TOKEN) });
 }
 
-async function putFile(token, path, bytes, message) {
-  const response = await fetch(`https://api.github.com/repos/${REPOSITORY}/contents/${encodePath(path)}`, {
-    method: "PUT",
+async function commitSubmission(token, files, message) {
+  const head = await githubRequest(token, `/git/ref/heads/${BRANCH}`);
+  const baseCommit = await githubRequest(token, `/git/commits/${head.object.sha}`);
+  const blobs = await Promise.all(files.map(async ({ path, bytes }) => ({
+    path,
+    sha: (await githubRequest(token, "/git/blobs", "POST", { content: toBase64(await bytes), encoding: "base64" })).sha,
+  })));
+  const tree = await githubRequest(token, "/git/trees", "POST", {
+    base_tree: baseCommit.tree.sha,
+    tree: blobs.map(({ path, sha }) => ({ path, mode: "100644", type: "blob", sha })),
+  });
+  const commit = await githubRequest(token, "/git/commits", "POST", { message, tree: tree.sha, parents: [head.object.sha] });
+  await githubRequest(token, `/git/refs/heads/${BRANCH}`, "PATCH", { sha: commit.sha, force: false });
+}
+
+async function githubRequest(token, path, method = "GET", body) {
+  const response = await fetch(`https://api.github.com/repos/${REPOSITORY}${path}`, {
+    method,
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
@@ -66,12 +76,13 @@ async function putFile(token, path, bytes, message) {
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "zju-animal-submissions",
     },
-    body: JSON.stringify({ message, content: toBase64(bytes), branch: BRANCH }),
+    body: body ? JSON.stringify(body) : undefined,
   });
   if (!response.ok) {
     const detail = await response.json().catch(() => null);
     throw new Error(detail?.message ? `图片保存失败：${detail.message}` : "图片保存失败，请稍后重试。");
   }
+  return response.json();
 }
 
 function cleanText(value, maxLength) {
@@ -80,10 +91,6 @@ function cleanText(value, maxLength) {
 
 function safePathSegment(value) {
   return value.normalize("NFKC").replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "") || "unnamed-species";
-}
-
-function encodePath(path) {
-  return path.split("/").map(encodeURIComponent).join("/");
 }
 
 function toBase64(bytes) {
