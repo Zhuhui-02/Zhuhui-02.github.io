@@ -124,7 +124,7 @@
           <a class="button contribution" id="submitSpecies" href="submit.html">提交图片</a>
         </div>
       </section>
-      <div class="hint">空格：显示答案　←/→：切换物种　↑/↓：切换角度</div>
+      <div class="hint">空格：显示答案　1：会　2：不会　←/→：切换物种　↑/↓：切换角度</div>
     </main>
   </div>
   <script>
@@ -224,7 +224,16 @@
     $("previousAngle").addEventListener("click", () => changeAngle(-1)); $("nextAngle").addEventListener("click", () => changeAngle(1));
     $("photoStrip").addEventListener("click", (event) => { const button = event.target.closest(".photo-thumb"); if (!button) return; state.angle = Number(button.dataset.angle); render(); });
     deck.addEventListener("click", (event) => { const button = event.target.closest(".thumb"); if (!button) return; const index = cards.findIndex((card) => card.id === button.dataset.id); if (index >= 0) { state.history.push(currentCard().id); state.current = index; state.round = state.round.filter((card) => card.id !== button.dataset.id); state.angle = 0; state.shown = false; render(); renderDeck(); } });
-    window.addEventListener("keydown", (event) => { if (event.target.matches("button, input, select")) return; if (event.key === " ") { event.preventDefault(); state.shown = !state.shown; render(); } if (event.key === "ArrowRight") pickRandom(true); if (event.key === "ArrowLeft") goPrevious(); if (event.key === "ArrowUp") changeAngle(-1); if (event.key === "ArrowDown") changeAngle(1); });
+    window.addEventListener("keydown", (event) => {
+      if (event.target.matches("input, select, textarea")) return;
+      if (event.key === " ") { event.preventDefault(); state.shown = !state.shown; render(); }
+      if (event.key === "1") { event.preventDefault(); mark("good"); }
+      if (event.key === "2") { event.preventDefault(); mark("bad"); }
+      if (event.key === "ArrowRight") { event.preventDefault(); pickRandom(true); }
+      if (event.key === "ArrowLeft") { event.preventDefault(); goPrevious(); }
+      if (event.key === "ArrowUp") { event.preventDefault(); changeAngle(-1); }
+      if (event.key === "ArrowDown") { event.preventDefault(); changeAngle(1); }
+    });
   </script>
 </body>
 </html>
