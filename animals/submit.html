@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>投稿动物图片</title>
+  <script src="./data.js"></script>
+  <style>
+    :root { --ink:#1a2127; --muted:#5b6872; --line:#d6dde0; --paper:#f6f4ee; --panel:#fff; --sea:#136f7a; --coral:#b84b42; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; letter-spacing:0; }
+    .page { width:min(880px,calc(100% - 32px)); margin:0 auto; padding:28px 0 56px; }
+    header { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; margin-bottom:24px; }
+    h1 { margin:0; font-size:28px; line-height:1.2; }
+    .lede { margin:8px 0 0; color:var(--muted); line-height:1.6; }
+    .back { border:1px solid var(--line); border-radius:7px; padding:9px 12px; color:var(--sea); background:#fff; text-decoration:none; white-space:nowrap; }
+    form { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:22px; display:grid; gap:20px; }
+    .field { display:grid; gap:8px; }
+    label { font-size:14px; font-weight:700; }
+    input, select, textarea { width:100%; font:inherit; color:var(--ink); background:#fff; border:1px solid var(--line); border-radius:7px; padding:11px 12px; }
+    textarea { min-height:112px; resize:vertical; }
+    input:focus,select:focus,textarea:focus { outline:2px solid rgba(19,111,122,.22); border-color:var(--sea); }
+    .help { margin:0; color:var(--muted); font-size:13px; line-height:1.55; }
+    .upload { border:1px dashed #9eafb4; border-radius:8px; padding:16px; background:#f9fbfa; }
+    .upload input { border:0; background:transparent; padding:4px 0; }
+    .previews { display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:10px; }
+    .preview { position:relative; aspect-ratio:1; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:#edf0ef; }
+    .preview img { width:100%; height:100%; object-fit:cover; display:block; }
+    .preview span { position:absolute; left:0; right:0; bottom:0; padding:5px 6px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; color:#fff; background:rgba(20,31,36,.72); font-size:11px; }
+    .actions { display:flex; align-items:center; justify-content:space-between; gap:14px; padding-top:2px; }
+    .status { color:var(--muted); font-size:13px; }
+    button { border:1px solid var(--sea); border-radius:7px; background:var(--sea); color:#fff; padding:11px 15px; font:inherit; font-weight:700; cursor:pointer; }
+    button:disabled { opacity:.48; cursor:not-allowed; }
+    .notice { display:none; border-left:3px solid var(--gold, #bb8d20); padding:10px 12px; background:#fff8df; color:#5a4b19; line-height:1.55; font-size:13px; }
+    .notice.show { display:block; }
+    @media (max-width:580px) { .page { width:min(100% - 24px,880px); padding-top:20px; } header { flex-direction:column; } .actions { align-items:stretch; flex-direction:column; } button { width:100%; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <div><h1>投稿动物图片</h1><p class="lede">补充同一物种的更多角度，供后续辨认复习使用。</p></div>
+      <a class="back" href="./">返回动物标本</a>
+    </header>
+    <form id="submissionForm">
+      <div class="field">
+        <label for="species">物种</label>
+        <select id="species" required></select>
+      </div>
+      <div class="field" id="customSpeciesField" hidden>
+        <label for="customSpecies">物种名称</label>
+        <input id="customSpecies" type="text" placeholder="填写尚未收录的物种名称">
+      </div>
+      <div class="field">
+        <label for="photos">图片</label>
+        <div class="upload"><input id="photos" type="file" accept="image/*" multiple required><p class="help">可一次选择同一物种的多张照片。</p></div>
+        <div class="previews" id="previews" aria-live="polite"></div>
+      </div>
+      <div class="field">
+        <label for="notes">补充说明</label>
+        <textarea id="notes" placeholder="例如：腹面、背面、螯足细节、采集地点或拍摄日期"></textarea>
+      </div>
+      <div class="notice" id="notice">将打开 GitHub 投稿页。请把刚才选择的照片拖入其附件区域；物种名称和说明已复制到剪贴板。</div>
+      <div class="actions"><span class="status" id="status">尚未选择图片</span><button id="submitButton" type="submit" disabled>前往投稿</button></div>
+    </form>
+  </main>
+  <script>
+    const cards = window.ANIMAL_CARDS || [];
+    const species = document.getElementById("species");
+    const customSpeciesField = document.getElementById("customSpeciesField");
+    const customSpecies = document.getElementById("customSpecies");
+    const photos = document.getElementById("photos");
+    const previews = document.getElementById("previews");
+    const status = document.getElementById("status");
+    const submitButton = document.getElementById("submitButton");
+    const notes = document.getElementById("notes");
+    const notice = document.getElementById("notice");
+    species.innerHTML = `<option value="">选择已收录物种</option>${cards.map((card) => `<option value="${card.name}">${card.name}</option>`).join("")}<option value="__new__">新增物种</option>`;
+
+    species.addEventListener("change", () => { const isNew = species.value === "__new__"; customSpeciesField.hidden = !isNew; customSpecies.required = isNew; });
+    photos.addEventListener("change", () => {
+      previews.innerHTML = "";
+      [...photos.files].forEach((file) => {
+        const item = document.createElement("div"); item.className = "preview";
+        const image = document.createElement("img"); image.src = URL.createObjectURL(file); image.alt = file.name;
+        const label = document.createElement("span"); label.textContent = file.name;
+        item.append(image, label); previews.append(item);
+      });
+      const count = photos.files.length; status.textContent = count ? `已选择 ${count} 张图片` : "尚未选择图片"; submitButton.disabled = !count;
+    });
+    document.getElementById("submissionForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = species.value === "__new__" ? customSpecies.value.trim() : species.value;
+      if (!name || !photos.files.length) return;
+      const draft = `物种：${name}\n图片：${photos.files.length} 张\n补充说明：${notes.value.trim() || "无"}`;
+      try { await navigator.clipboard.writeText(draft); } catch (_) {}
+      notice.classList.add("show");
+      const url = new URL("https://github.com/Zhuhui-02/Zhuhui-02.github.io/issues/new");
+      url.searchParams.set("template", "animal-photo-submission.yml");
+      url.searchParams.set("title", `动物图片补充：${name}`);
+      window.open(url, "_blank", "noopener");
+    });
+  </script>
+</body>
+</html>

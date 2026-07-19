@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>动物标本辨认</title>
+  <script src="./data.js"></script>
+  <style>
+    :root { --ink:#1a2127; --muted:#5b6872; --line:#d6dde0; --paper:#f6f4ee; --panel:#fff; --sea:#136f7a; --coral:#b84b42; --gold:#bb8d20; --shadow:0 14px 45px rgba(30,42,47,.13); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--paper); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; letter-spacing:0; }
+    button,select { font:inherit; }
+    button { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:.42; }
+    .app { min-height:100vh; display:grid; grid-template-columns:320px minmax(0,1fr); }
+    aside { border-right:1px solid var(--line); background:#fcfbf7; padding:22px; display:flex; flex-direction:column; gap:18px; overflow:auto; }
+    main { padding:22px; display:grid; grid-template-rows:auto minmax(0,1fr) auto; gap:16px; min-width:0; }
+    h1 { margin:0; font-size:24px; line-height:1.15; font-weight:760; }
+    .meta { color:var(--muted); font-size:14px; }
+    .site-links { display:flex; gap:8px; flex-wrap:wrap; }
+    .site-links a { color:var(--sea); font-size:13px; text-decoration:none; padding:7px 9px; border:1px solid var(--line); border-radius:6px; background:#fff; }
+    .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+    .stat { border:1px solid var(--line); border-radius:7px; padding:12px; background:var(--panel); }
+    .stat strong { display:block; font-size:22px; line-height:1; margin-bottom:4px; }
+    .stat span,.field label { color:var(--muted); font-size:12px; }
+    .field { display:grid; gap:7px; }
+    select { width:100%; padding:10px 11px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink); }
+    .toggle-row { display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid var(--line); background:#fff; border-radius:7px; padding:10px 12px; color:var(--muted); font-size:14px; }
+    .switch { position:relative; width:44px; height:24px; flex:0 0 auto; }
+    .switch input { opacity:0; position:absolute; }
+    .switch span { position:absolute; inset:0; border-radius:99px; background:#dfe5e2; transition:.18s ease; }
+    .switch span::after { content:""; position:absolute; width:18px; height:18px; left:3px; top:3px; border-radius:50%; background:#fff; box-shadow:0 2px 6px rgba(0,0,0,.22); transition:.18s ease; }
+    .switch input:checked + span { background:var(--sea); }
+    .switch input:checked + span::after { transform:translateX(20px); }
+    .deck { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
+    .thumb { width:100%; aspect-ratio:1; padding:0; overflow:hidden; border:2px solid transparent; border-radius:5px; background:#e7e9e7; }
+    .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .thumb.good { border-color:#4d9179; }
+    .thumb.bad { border-color:var(--coral); }
+    .thumb.active { outline:2px solid var(--sea); outline-offset:1px; }
+    .small-button,.button { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:7px; font-weight:700; }
+    .small-button { padding:9px 11px; }
+    .small-button:hover,.site-links a:hover { border-color:var(--sea); }
+    .reset { color:var(--coral); }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; }
+    .topbar-actions { display:flex; gap:8px; }
+    .pill { border:1px solid var(--line); border-radius:99px; background:#fff; padding:8px 12px; color:var(--muted); white-space:nowrap; font-size:14px; }
+    .viewer { min-height:0; display:grid; grid-template-rows:minmax(0,1fr) auto; gap:14px; }
+    .image-stage { min-height:320px; border:1px solid var(--line); border-radius:8px; background:#fff; box-shadow:var(--shadow); display:grid; place-items:center; overflow:hidden; position:relative; }
+    .image-stage img { max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; display:block; }
+    .angle-controls { position:absolute; inset:0; display:flex; align-items:center; justify-content:space-between; pointer-events:none; padding:12px; }
+    .icon-button { width:42px; height:42px; border:1px solid var(--line); border-radius:50%; background:rgba(255,255,255,.93); color:var(--ink); font-size:24px; line-height:1; pointer-events:auto; }
+    .angle-controls .icon-button:hover { border-color:var(--sea); color:var(--sea); }
+    .angle-count { position:absolute; right:14px; bottom:14px; padding:7px 10px; border-radius:99px; background:rgba(20,31,36,.78); color:#fff; font-size:13px; }
+    .photo-strip { display:flex; gap:8px; overflow:auto; padding:2px; }
+    .photo-thumb { flex:0 0 72px; width:72px; height:58px; border:2px solid transparent; padding:0; border-radius:5px; overflow:hidden; background:#e7e9e7; }
+    .photo-thumb.selected { border-color:var(--sea); }
+    .photo-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .answer { border:1px solid var(--line); border-radius:8px; background:#fff; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+    .answer.hidden .answer-copy { visibility:hidden; }
+    .answer h2 { margin:0; font-size:20px; }
+    .answer p { margin:4px 0 0; color:var(--muted); font-size:13px; }
+    .answer-actions { display:flex; gap:9px; flex-wrap:wrap; justify-content:flex-end; }
+    .button { min-width:88px; padding:10px 13px; }
+    .button.primary { color:#fff; background:var(--sea); border-color:var(--sea); }
+    .button.good { color:#fff; background:#4d9179; border-color:#4d9179; }
+    .button.bad { color:#fff; background:var(--coral); border-color:var(--coral); }
+    .hint { color:var(--muted); font-size:12px; text-align:right; }
+    @media (max-width:820px) { .app { display:block; } aside { border-right:0; border-bottom:1px solid var(--line); } main { padding:16px; } .deck { grid-template-columns:repeat(8,1fr); max-height:138px; overflow:auto; } .answer { align-items:flex-start; flex-direction:column; } .answer-actions { justify-content:flex-start; } }
+    @media (max-width:520px) { aside { padding:16px; } h1 { font-size:22px; } .stats { grid-template-columns:repeat(4,1fr); } .stat { padding:9px; } .stat strong { font-size:17px; } .stat span { font-size:11px; } .image-stage { min-height:48vh; } .topbar { align-items:flex-start; flex-direction:column; } .topbar-actions { width:100%; justify-content:space-between; } .button { flex:1; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div>
+        <h1>动物标本辨认</h1>
+        <p class="meta">同一物种的所有角度，一起辨认</p>
+      </div>
+      <nav class="site-links" aria-label="站点导航">
+        <a href="../">植物复习</a>
+        <a href="./">动物标本</a>
+        <a href="submit.html">投稿图片</a>
+      </nav>
+      <div class="stats" aria-label="复习统计">
+        <div class="stat"><strong id="totalCount">0</strong><span>物种</span></div>
+        <div class="stat"><strong id="knownCount">0</strong><span>会</span></div>
+        <div class="stat"><strong id="missedCount">0</strong><span>不会</span></div>
+        <div class="stat"><strong id="leftCount">0</strong><span>待练</span></div>
+      </div>
+      <div class="toggle-row"><span>只复习不会</span><label class="switch"><input id="missedOnly" type="checkbox" aria-label="只复习不会"><span></span></label></div>
+      <button class="small-button reset" id="resetBtn" type="button">清除本机记录</button>
+      <div class="field"><label>标本索引</label><div class="deck" id="deck"></div></div>
+    </aside>
+    <main>
+      <div class="topbar">
+        <span class="pill" id="position">第 1 / 0 个物种</span>
+        <div class="topbar-actions">
+          <button class="small-button" id="prevBtn" type="button" aria-label="上一种">← 上一张</button>
+          <button class="small-button" id="nextBtn" type="button" aria-label="下一种">下一张 →</button>
+        </div>
+      </div>
+      <div class="viewer">
+        <div class="image-stage">
+          <img id="animalImage" alt="待辨认动物标本">
+          <div class="angle-controls">
+            <button class="icon-button" id="previousAngle" type="button" aria-label="上一个角度">‹</button>
+            <button class="icon-button" id="nextAngle" type="button" aria-label="下一个角度">›</button>
+          </div>
+          <span class="angle-count" id="angleCount">1 / 1 个角度</span>
+        </div>
+        <div class="photo-strip" id="photoStrip" aria-label="同一标本的全部图片"></div>
+      </div>
+      <section class="answer" id="answer" aria-live="polite">
+        <div class="answer-copy">
+          <h2 id="answerName">答案</h2>
+          <p id="answerDetail"></p>
+        </div>
+        <div class="answer-actions">
+          <button class="button primary" id="revealBtn" type="button">显示答案</button>
+          <button class="button good" id="knownBtn" type="button">会</button>
+          <button class="button bad" id="missedBtn" type="button">不会</button>
+        </div>
+      </section>
+      <div class="hint">空格：显示答案　←/→：切换物种　↑/↓：切换角度</div>
+    </main>
+  </div>
+  <script>
+    const cards = window.ANIMAL_CARDS || [];
+    const storageKey = "animal-quiz-progress-v1";
+    const state = { current: 0, angle: 0, shown: false, filtered: [], round: [], history: [], progress: JSON.parse(localStorage.getItem(storageKey) || "{}") };
+    const $ = (id) => document.getElementById(id);
+    const image = $("animalImage");
+    const missedOnly = $("missedOnly");
+    const deck = $("deck");
+
+    function saveProgress() { localStorage.setItem(storageKey, JSON.stringify(state.progress)); }
+    function currentCard() { return cards[state.current] || cards[0]; }
+    function shuffle(items) { const shuffled = items.slice(); for (let index = shuffled.length - 1; index > 0; index -= 1) { const randomIndex = Math.floor(Math.random() * (index + 1)); [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]]; } return shuffled; }
+    function startRound(excludeId) { state.round = shuffle(state.filtered.filter((card) => card.id !== excludeId)); }
+    function applyFilters() {
+      state.filtered = cards.filter((card) => !missedOnly.checked || state.progress[card.id] === "bad");
+      if (!state.filtered.length) { state.filtered = cards.slice(); missedOnly.checked = false; }
+      const current = currentCard();
+      if (!state.filtered.includes(current)) { startRound(); pickRandom(false); } else { startRound(current.id); render(); }
+      renderDeck();
+    }
+    function pickRandom(pushHistory = true) {
+      if (!state.filtered.length) return;
+      const current = currentCard();
+      if (!state.round.length) startRound(current?.id);
+      const next = state.round.pop() || current;
+      if (pushHistory && current) state.history.push(current.id);
+      state.current = cards.findIndex((card) => card.id === next.id);
+      state.angle = 0; state.shown = false; render(); renderDeck();
+    }
+    function goPrevious() {
+      const last = state.history.pop(); if (!last) return;
+      const index = cards.findIndex((card) => card.id === last);
+      if (index >= 0) { state.current = index; state.angle = 0; state.shown = false; render(); renderDeck(); }
+    }
+    function changeAngle(delta) {
+      const card = currentCard(); if (!card || card.images.length < 2) return;
+      state.angle = (state.angle + delta + card.images.length) % card.images.length;
+      render();
+    }
+    function mark(value) {
+      const card = currentCard(); state.progress[card.id] = value; saveProgress(); state.shown = true; render(); renderDeck(); setTimeout(() => pickRandom(true), 180);
+    }
+    function stats() {
+      const known = Object.values(state.progress).filter((value) => value === "good").length;
+      const missed = Object.values(state.progress).filter((value) => value === "bad").length;
+      $("totalCount").textContent = cards.length; $("knownCount").textContent = known; $("missedCount").textContent = missed; $("leftCount").textContent = Math.max(cards.length - known, 0);
+    }
+    function render() {
+      const card = currentCard(); if (!card) return;
+      const imagePath = card.images[state.angle];
+      image.src = imagePath; image.alt = state.shown ? card.name : "待辨认动物标本";
+      $("answerName").textContent = card.name;
+      $("answerDetail").textContent = `同一标本收录 ${card.images.length} 张图片`;
+      $("position").textContent = `第 ${card.number} / ${cards.length} 个物种`;
+      $("angleCount").textContent = `${state.angle + 1} / ${card.images.length} 个角度`;
+      $("answer").classList.toggle("hidden", !state.shown);
+      $("revealBtn").textContent = state.shown ? "隐藏答案" : "显示答案";
+      $("previousAngle").disabled = card.images.length < 2; $("nextAngle").disabled = card.images.length < 2;
+      $("photoStrip").innerHTML = card.images.map((path, index) => `<button class="photo-thumb${index === state.angle ? " selected" : ""}" type="button" data-angle="${index}" aria-label="第 ${index + 1} 个角度"><img loading="lazy" src="${path}" alt=""></button>`).join("");
+      stats();
+    }
+    function renderDeck() {
+      const visible = state.filtered.length ? state.filtered : cards;
+      deck.innerHTML = visible.map((card) => { const status = state.progress[card.id] || ""; const active = card.id === currentCard()?.id ? " active" : ""; return `<button class="thumb ${status}${active}" type="button" data-id="${card.id}" title="${card.name}"><img loading="lazy" src="${card.images[0]}" alt=""></button>`; }).join("");
+    }
+    function reset() { state.progress = {}; saveProgress(); missedOnly.checked = false; applyFilters(); }
+
+    state.filtered = cards.slice(); startRound(); pickRandom(false);
+    $("prevBtn").addEventListener("click", goPrevious); $("nextBtn").addEventListener("click", () => pickRandom(true));
+    $("revealBtn").addEventListener("click", () => { state.shown = !state.shown; render(); });
+    $("knownBtn").addEventListener("click", () => mark("good")); $("missedBtn").addEventListener("click", () => mark("bad"));
+    $("resetBtn").addEventListener("click", reset); missedOnly.addEventListener("change", applyFilters);
+    $("previousAngle").addEventListener("click", () => changeAngle(-1)); $("nextAngle").addEventListener("click", () => changeAngle(1));
+    $("photoStrip").addEventListener("click", (event) => { const button = event.target.closest(".photo-thumb"); if (!button) return; state.angle = Number(button.dataset.angle); render(); });
+    deck.addEventListener("click", (event) => { const button = event.target.closest(".thumb"); if (!button) return; const index = cards.findIndex((card) => card.id === button.dataset.id); if (index >= 0) { state.history.push(currentCard().id); state.current = index; state.round = state.round.filter((card) => card.id !== button.dataset.id); state.angle = 0; state.shown = false; render(); renderDeck(); } });
+    window.addEventListener("keydown", (event) => { if (event.target.matches("button, input, select")) return; if (event.key === " ") { event.preventDefault(); state.shown = !state.shown; render(); } if (event.key === "ArrowRight") pickRandom(true); if (event.key === "ArrowLeft") goPrevious(); if (event.key === "ArrowUp") changeAngle(-1); if (event.key === "ArrowDown") changeAngle(1); });
+  </script>
+</body>
+</html>

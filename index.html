@@ -72,6 +72,26 @@
       font-size: 14px;
     }
 
+    .site-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .site-links a {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--accent);
+      padding: 7px 9px;
+      font-size: 13px;
+      text-decoration: none;
+    }
+
+    .site-links a:hover {
+      border-color: var(--accent);
+    }
+
     .stats {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -416,6 +436,11 @@
         <h1>植物辨识复习</h1>
         <div class="meta">2026 生物学综合野外实习</div>
       </div>
+      <nav class="site-links" aria-label="站点导航">
+        <a href="./">植物复习</a>
+        <a href="animals/">动物标本</a>
+        <a href="animals/submit.html">投稿图片</a>
+      </nav>
       <div class="stats">
         <div class="stat"><strong id="totalCount">0</strong><span>题库</span></div>
         <div class="stat"><strong id="knownCount">0</strong><span>会</span></div>

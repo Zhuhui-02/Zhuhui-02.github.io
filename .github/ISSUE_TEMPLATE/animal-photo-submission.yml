@@ -1,0 +1,24 @@
+name: 动物图片补充
+description: 提交同一物种的更多标本照片
+title: "动物图片补充："
+body:
+  - type: input
+    id: species
+    attributes:
+      label: 物种名称
+      placeholder: 填写中文名称
+    validations:
+      required: true
+  - type: textarea
+    id: photos
+    attributes:
+      label: 图片
+      description: 将同一物种的不同角度照片拖到此处上传。
+      placeholder: 拖入或粘贴图片
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: 补充说明
+      description: 可写明拍摄角度、采集地点、时间或鉴定依据。
