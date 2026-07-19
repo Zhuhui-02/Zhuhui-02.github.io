@@ -1,5 +1,6 @@
 const REPOSITORY = "Zhuhui-02/Zhuhui-02.github.io";
 const BRANCH = "main";
+// Keep each multi-angle submission together for a single review and deployment.
 const MAX_PHOTOS = 8;
 const MAX_PHOTO_BYTES = 900_000;
 const ALLOWED_TYPES = new Map([
