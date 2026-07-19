@@ -1,6 +1,6 @@
 const REPOSITORY = "Zhuhui-02/Zhuhui-02.github.io";
 const BRANCH = "main";
-// Keep each multi-angle submission together for a single review and deployment.
+// Keep each multi-angle submission together for a single commit and deployment.
 const MAX_PHOTOS = 8;
 const MAX_PHOTO_BYTES = 900_000;
 const ALLOWED_TYPES = new Map([
@@ -49,7 +49,22 @@ export async function onRequestPost({ request, env }) {
 }
 
 export async function onRequestGet({ env }) {
-  return json({ ok: true, configured: Boolean(env.GITHUB_UPLOAD_TOKEN) });
+  const token = env.GITHUB_UPLOAD_TOKEN;
+  if (!token) return json({ ok: true, configured: false, submittedImages: {} });
+
+  try {
+    const tree = await githubRequest(token, `/git/trees/${BRANCH}?recursive=1`);
+    const submittedImages = {};
+    for (const entry of tree.tree || []) {
+      const match = entry.type === "blob" && /^submissions\/animals\/([^/]+)\/[^/]+\/\d+\.(?:jpe?g|png|webp)$/i.exec(entry.path);
+      if (!match) continue;
+      const speciesKey = match[1];
+      (submittedImages[speciesKey] ||= []).push(`/${entry.path.split("/").map(encodeURIComponent).join("/")}`);
+    }
+    return json({ ok: true, configured: true, submittedImages }, 200, "public, max-age=30");
+  } catch (error) {
+    return json({ ok: false, configured: true, submittedImages: {}, error: "投稿图片暂时无法加载。" }, 502);
+  }
 }
 
 async function commitSubmission(token, files, message) {
@@ -104,6 +119,6 @@ function toBase64(bytes) {
   return btoa(binary);
 }
 
-function json(body, status = 200) {
-  return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+function json(body, status = 200, cacheControl = "no-store") {
+  return Response.json(body, { status, headers: { "Cache-Control": cacheControl } });
 }

@@ -138,6 +138,7 @@
 
     function saveProgress() { localStorage.setItem(storageKey, JSON.stringify(state.progress)); }
     function currentCard() { return cards[state.current] || cards[0]; }
+    function speciesPathKey(value) { return value.normalize("NFKC").replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-+|-+$/g, "") || "unnamed-species"; }
     function shuffle(items) { const shuffled = items.slice(); for (let index = shuffled.length - 1; index > 0; index -= 1) { const randomIndex = Math.floor(Math.random() * (index + 1)); [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]]; } return shuffled; }
     function startRound(excludeId) { state.round = shuffle(state.filtered.filter((card) => card.id !== excludeId)); }
     function applyFilters() {
@@ -194,8 +195,28 @@
       deck.innerHTML = visible.map((card) => { const status = state.progress[card.id] || ""; const active = card.id === currentCard()?.id ? " active" : ""; return `<button class="thumb ${status}${active}" type="button" data-id="${card.id}" title="${card.name}"><img loading="lazy" src="${card.images[0]}" alt=""></button>`; }).join("");
     }
     function reset() { state.progress = {}; saveProgress(); missedOnly.checked = false; applyFilters(); }
+    function initialize() { state.current = 0; state.angle = 0; state.shown = false; state.history = []; state.filtered = cards.slice(); startRound(); pickRandom(false); }
+    async function loadSubmittedImages() {
+      try {
+        const response = await fetch("/api/animal-submissions");
+        const result = await response.json();
+        if (!response.ok || !result.ok) return;
+        let changed = false;
+        for (const [speciesKey, images] of Object.entries(result.submittedImages || {})) {
+          const card = cards.find((item) => speciesPathKey(item.name) === speciesKey);
+          if (card) {
+            const additions = images.filter((path) => !card.images.includes(path));
+            if (additions.length) { card.images.push(...additions); changed = true; }
+          } else if (images.length) {
+            cards.push({ id: `animal-submission-${speciesKey}`, number: cards.length + 1, name: speciesKey.replace(/-/g, " "), images });
+            changed = true;
+          }
+        }
+        if (changed) initialize();
+      } catch (_) {}
+    }
 
-    state.filtered = cards.slice(); startRound(); pickRandom(false);
+    initialize(); loadSubmittedImages();
     $("prevBtn").addEventListener("click", goPrevious); $("nextBtn").addEventListener("click", () => pickRandom(true));
     $("revealBtn").addEventListener("click", () => { state.shown = !state.shown; render(); });
     $("knownBtn").addEventListener("click", () => mark("good")); $("missedBtn").addEventListener("click", () => mark("bad"));

@@ -120,7 +120,7 @@
         const response = await fetch("/api/animal-submissions", { method: "POST", body: formData });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "提交失败，请稍后重试。");
-        notice.textContent = `已提交 ${result.photoCount} 张图片，等待管理员审核后加入题库。`;
+        notice.textContent = `已提交 ${result.photoCount} 张图片，将自动加入题库。`;
         notice.className = "notice show success";
         status.textContent = "投稿完成"; photos.value = ""; selectedPhotos = [];
       } catch (error) {
