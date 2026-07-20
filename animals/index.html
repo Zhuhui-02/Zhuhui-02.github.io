@@ -215,10 +215,12 @@
             changed = true;
           }
         }
-        if (changed && updatedCardId) {
-          state.current = cards.findIndex((card) => card.id === updatedCardId);
+        const latestCardId = cards.find((card) => speciesPathKey(card.name) === result.latestSpeciesKey)?.id;
+        if (changed && (latestCardId || updatedCardId)) {
+          const cardId = latestCardId || updatedCardId;
+          state.current = cards.findIndex((card) => card.id === cardId);
           state.angle = 0; state.shown = false; state.history = [];
-          state.filtered = cards.slice(); startRound(updatedCardId); render(); renderDeck();
+          state.filtered = cards.slice(); startRound(cardId); render(); renderDeck();
         }
       } catch (_) {}
     }

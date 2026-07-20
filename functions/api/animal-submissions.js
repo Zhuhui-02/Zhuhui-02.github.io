@@ -53,7 +53,10 @@ export async function onRequestGet({ env }) {
   if (!token) return json({ ok: true, configured: false, submittedImages: {} });
 
   try {
-    const tree = await githubRequest(token, `/git/trees/${BRANCH}?recursive=1`);
+    const [tree, commits] = await Promise.all([
+      githubRequest(token, `/git/trees/${BRANCH}?recursive=1`),
+      githubRequest(token, "/commits?path=submissions%2Fanimals&per_page=1").catch(() => []),
+    ]);
     const submittedImages = {};
     for (const entry of tree.tree || []) {
       const match = entry.type === "blob" && /^submissions\/animals\/([^/]+)\/[^/]+\/\d+\.(?:jpe?g|png|webp)$/i.exec(entry.path);
@@ -61,7 +64,9 @@ export async function onRequestGet({ env }) {
       const speciesKey = match[1];
       (submittedImages[speciesKey] ||= []).push(`/${entry.path.split("/").map(encodeURIComponent).join("/")}`);
     }
-    return json({ ok: true, configured: true, submittedImages });
+    const message = commits[0]?.commit?.message || "";
+    const latestSpeciesKey = message.startsWith("Add animal submission: ") ? safePathSegment(message.slice(23)) : null;
+    return json({ ok: true, configured: true, submittedImages, latestSpeciesKey });
   } catch (error) {
     return json({ ok: false, configured: true, submittedImages: {}, error: "投稿图片暂时无法加载。" }, 502);
   }
